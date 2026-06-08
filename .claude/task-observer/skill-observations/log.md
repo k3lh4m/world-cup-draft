@@ -97,3 +97,33 @@ DECLINED = user decided not to pursue
 
 **Principle:** Behavioral instructions (CLAUDE.md) and mechanical gates (hooks/CI) sit at different points on the reliability curve. Instructions are cheap and flexible but discipline-dependent and bypassable; gates are rigid but guarantee the invariant. For any convention whose violation is costly or hard to detect after the fact, recommend pairing the instruction with a gate rather than relying on the instruction alone.
 
+
+### Observation 5: Vendored/generated components can drop CSS positioning that hand-written wrappers silently depend on
+
+**Status:** OPEN
+**Date:** 2026-06-08
+**Session context:** Spec-compliance + code-quality review of a shadcn/ui (base-nova / Base UI) integration into a Next.js 16 app
+**Skill:** New skill candidate: design-system-integration-review (or addition to a code-review checklist)
+**Type:** open-source
+**Phase/Area:** Reviewing hand-written code that composes vendored/CLI-generated components
+
+**Issue:** The hand-written `theme-toggle.tsx` overlays two icons using `absolute` positioning on the Moon icon, a pattern copied from canonical shadcn examples that assumes the trigger Button establishes a positioning context. The current vendored `base-nova` `button.tsx` base class no longer includes `relative`, so the absolute icon has no positioned ancestor on the button. The code typechecks and the page builds clean, so the defect is invisible to `tsc`/`yarn build` and only surfaces as a visual misplacement in dark mode. A false-positive grep (`grep -oE relative && echo ...` after a non-matching grep) nearly caused this to be reported as a non-issue.
+
+**Suggested improvement:** When reviewing hand-written code that composes CLI-generated/vendored components, explicitly verify the CSS contract the hand-written code assumes (e.g. a `relative` ancestor for `absolute` children, expected slots/data-attrs) against the *actual current* vendored source, not against the canonical upstream example or training-data memory. Treat "copied a known shadcn snippet" as a signal to diff the snippet's assumptions against the installed component version. Also: never confirm presence/absence of a class via a chained `grep -oE pattern && echo` — verify the grep exit code (`rc=$?`) or use `grep -c`.
+
+**Principle:** Build/typecheck success does not validate CSS layout contracts between hand-written wrappers and generated components. When a UI library is swapped or a non-default style is installed (here Base UI / base-nova instead of Radix), snippets ported from the library's canonical docs may rely on base-component CSS that the installed variant no longer provides. Verify the contract against the installed source.
+
+### Observation 6: Self-referential `@theme inline` token aliases work but are a tautology trap worth flagging
+
+**Status:** OPEN
+**Date:** 2026-06-08
+**Session context:** Same shadcn/ui + Tailwind v4 token-theming review
+**Skill:** New skill candidate / addition to design-system-integration-review
+**Type:** open-source
+**Phase/Area:** Reviewing Tailwind v4 `@theme inline` token mappings
+
+**Issue:** `globals.css` maps `--font-sans: var(--font-sans)` inside `@theme inline`, which only resolves correctly because `:root` separately defines `--font-sans: var(--font-geist-sans)`. The `@theme` line is effectively a no-op tautology; the real wiring lives in `:root`. It works (verified in compiled CSS) but reads as a mistake and would break silently if the `:root` line were ever removed or reordered. Confirming it actually resolved required inspecting the built CSS in `.next`, not reasoning from the source.
+
+**Suggested improvement:** In a design-system-integration-review skill, add a check for self-referential `@theme inline` mappings (`--x: var(--x)`). Flag them as fragile-but-working and recommend either mapping directly to the underlying primitive (`--font-sans: var(--font-geist-sans)`) or documenting the indirection. When token resolution is non-obvious, verify against compiled output (`.next/static/**/*.css`) rather than reasoning about the cascade.
+
+**Principle:** Tailwind v4 `@theme inline` resolves `var()` against the `:root` cascade, so `--x: var(--x)` silently aliases to the root definition. This "works" but couples two declarations implicitly; the most robust mapping points at the underlying primitive. Verify non-obvious CSS-variable resolution against compiled output, not source-level reasoning.

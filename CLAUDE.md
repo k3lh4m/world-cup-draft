@@ -5,6 +5,39 @@
 Do **not** add a `Co-Authored-By: Claude …` trailer (or any "Generated with Claude
 Code" line) to commit messages. Keep commit messages clean with no AI attribution.
 
+# Parallel work across terminals (git worktrees)
+
+To work on multiple features at once — one Claude Code session per terminal window —
+use **git worktrees** for isolation. Follow the `superpowers:using-git-worktrees` skill.
+
+> **One worktree = one branch = one directory = one terminal = one Claude session.**
+
+```bash
+# one-time (worktree dir must be ignored before creating any worktree):
+git check-ignore -q .worktrees || { echo ".worktrees/" >> .gitignore && git commit -am "chore: ignore .worktrees"; }
+
+# per feature:
+git worktree add .worktrees/<feature> -b <feature>
+cd .worktrees/<feature> && npm install
+```
+
+## Convex isolation caveat (important)
+
+Worktrees isolate **code only**. `.env.local` is copied into every worktree, so by
+default all sessions point at the **same Convex dev deployment** (`CONVEX_DEPLOYMENT`)
+and share one database. Two sessions running `convex dev` at once will **clobber each
+other's schema/functions**. Pick one:
+
+- **Shared backend (default)** — only run `convex dev` in *one* worktree at a time. Fine
+  when parallel features don't change `convex/schema.ts` or fight over the same tables.
+  Other worktrees still run `npm test` (vitest) fully isolated — tests never hit the live
+  deployment, so the TDD red/green loop works in parallel regardless.
+- **Separate backends** — for schema changes or independent data, run `npx convex dev --once`
+  inside the worktree to provision its own dev deployment (rewrites that worktree's
+  `.env.local`). Only then is the backend truly isolated.
+
+Also give each `next dev` its own port (`next dev -p 3001`, etc.) to avoid port clashes.
+
 # Project skills (always-on)
 
 This project ships two behavioral skills that are **not** auto-discovered by the
