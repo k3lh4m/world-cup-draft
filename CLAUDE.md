@@ -18,7 +18,7 @@ git check-ignore -q .worktrees || { echo ".worktrees/" >> .gitignore && git comm
 
 # per feature:
 git worktree add .worktrees/<feature> -b <feature>
-cd .worktrees/<feature> && npm install
+cd .worktrees/<feature> && yarn install
 ```
 
 ## Convex isolation caveat (important)
@@ -30,9 +30,9 @@ other's schema/functions**. Pick one:
 
 - **Shared backend (default)** — only run `convex dev` in *one* worktree at a time. Fine
   when parallel features don't change `convex/schema.ts` or fight over the same tables.
-  Other worktrees still run `npm test` (vitest) fully isolated — tests never hit the live
+  Other worktrees still run `yarn test` (vitest) fully isolated — tests never hit the live
   deployment, so the TDD red/green loop works in parallel regardless.
-- **Separate backends** — for schema changes or independent data, run `npx convex dev --once`
+- **Separate backends** — for schema changes or independent data, run `yarn convex dev --once`
   inside the worktree to provision its own dev deployment (rewrites that worktree's
   `.env.local`). Only then is the backend truly isolated.
 
@@ -133,6 +133,6 @@ how to correctly use Convex APIs and patterns. The file contains rules that
 override what you may have learned about Convex from training data.
 
 Convex agent skills for common tasks can be installed by running
-`npx convex ai-files install`.
+`yarn convex ai-files install`.
 
 <!-- convex-ai-end -->
