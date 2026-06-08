@@ -1,20 +1,25 @@
-export type Pos = "GK" | "DEF" | "MID" | "FWD";
+import { z } from "zod";
 
-export interface ParsedPlayer {
-  name: string;
-  pos: Pos;
-  club: string;
-  espnId?: number;
-}
+export const PosSchema = z.enum(["GK", "DEF", "MID", "FWD"]);
+export type Pos = z.infer<typeof PosSchema>;
 
-export interface ParsedSquad {
-  group: string;
-  team: string;
-  espnTeamId: number;
-  logo: string;
-  manager: string;
-  players: ParsedPlayer[];
-}
+export const ParsedPlayerSchema = z.object({
+  name: z.string(),
+  pos: PosSchema,
+  club: z.string(),
+  espnId: z.number().optional(),
+});
+export type ParsedPlayer = z.infer<typeof ParsedPlayerSchema>;
+
+export const ParsedSquadSchema = z.object({
+  group: z.string(),
+  team: z.string(),
+  espnTeamId: z.number(),
+  logo: z.string(),
+  manager: z.string(),
+  players: z.array(ParsedPlayerSchema),
+});
+export type ParsedSquad = z.infer<typeof ParsedSquadSchema>;
 
 const POS_LABELS: { label: string; pos: Pos }[] = [
   { label: "Goalkeepers", pos: "GK" },

@@ -2,16 +2,12 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies, then run the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+yarn install
+yarn dev          # Next.js frontend
+yarn convex:dev   # Convex backend (in a separate terminal)
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

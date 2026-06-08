@@ -6,36 +6,44 @@
  * 2022 World Cup final feed: relevant stat names are
  *   totalGoals, goalAssists, redCards, goalsConceded, appearances.
  */
-export interface MatchStat {
-  espnPlayerId: number;
-  espnEventId: string;
-  goals: number;
-  assists: number;
-  cleanSheet: boolean;
-  minutes: number;
-  redCard: boolean;
-}
+import { z } from "zod";
 
-interface RawStat {
-  name: string;
-  value?: number | string;
-}
-interface RawRosterEntry {
-  athlete?: { id?: string | number };
-  starter?: boolean;
-  subbedIn?: boolean;
-  stats?: RawStat[];
-}
-interface RawSummary {
-  rosters?: { roster?: RawRosterEntry[] }[];
-}
+export const MatchStatSchema = z.object({
+  espnPlayerId: z.number(),
+  espnEventId: z.string(),
+  goals: z.number(),
+  assists: z.number(),
+  cleanSheet: z.boolean(),
+  minutes: z.number(),
+  redCard: z.boolean(),
+});
+export type MatchStat = z.infer<typeof MatchStatSchema>;
+
+const RawStatSchema = z.object({
+  name: z.string(),
+  value: z.union([z.number(), z.string()]).optional(),
+});
+type RawStat = z.infer<typeof RawStatSchema>;
+
+const RawRosterEntrySchema = z.object({
+  athlete: z.object({ id: z.union([z.string(), z.number()]).optional() }).optional(),
+  starter: z.boolean().optional(),
+  subbedIn: z.boolean().optional(),
+  stats: z.array(RawStatSchema).optional(),
+});
+
+// ESPN summaries carry many fields we ignore; only `rosters` is parsed here.
+export const RawSummarySchema = z.object({
+  rosters: z.array(z.object({ roster: z.array(RawRosterEntrySchema).optional() })).optional(),
+});
 
 function statVal(stats: RawStat[], name: string): number {
   const s = stats.find((x) => x.name === name);
   return s ? Number(s.value) || 0 : 0;
 }
 
-export function extractMatchStats(summary: RawSummary, espnEventId: string): MatchStat[] {
+export function extractMatchStats(rawSummary: unknown, espnEventId: string): MatchStat[] {
+  const summary = RawSummarySchema.parse(rawSummary);
   const rows: MatchStat[] = [];
   for (const team of summary.rosters ?? []) {
     for (const entry of team.roster ?? []) {

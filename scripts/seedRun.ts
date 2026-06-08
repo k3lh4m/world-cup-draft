@@ -4,9 +4,10 @@
  * Requires NEXT_PUBLIC_CONVEX_URL (set by `convex dev` in .env.local).
  */
 import { readFileSync } from "node:fs";
+import { z } from "zod";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
-import type { PoolPlayer } from "./buildPlayers";
+import { PoolPlayerSchema } from "./buildPlayers";
 
 const url = process.env.NEXT_PUBLIC_CONVEX_URL;
 if (!url) {
@@ -14,9 +15,9 @@ if (!url) {
   process.exit(1);
 }
 
-const players: PoolPlayer[] = JSON.parse(
-  readFileSync(new URL("../data/players.json", import.meta.url), "utf8"),
-);
+const players = z
+  .array(PoolPlayerSchema)
+  .parse(JSON.parse(readFileSync(new URL("../data/players.json", import.meta.url), "utf8")));
 
 const client = new ConvexHttpClient(url);
 const BATCH = 200;

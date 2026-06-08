@@ -1,9 +1,24 @@
 import { internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { z } from "zod";
 import { extractMatchStats } from "./lib/espnSummary";
 
 const BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world";
+
+// ESPN scoreboard; only the fixture fields used below are validated.
+const ScoreboardSchema = z.object({
+  events: z
+    .array(
+      z.object({
+        id: z.union([z.string(), z.number()]),
+        date: z.string().optional(),
+        shortName: z.string().optional(),
+        status: z.object({ type: z.object({ state: z.string().optional() }).optional() }).optional(),
+      }),
+    )
+    .optional(),
+});
 
 const statArg = v.object({
   espnPlayerId: v.number(),
@@ -49,8 +64,8 @@ export const upsertMatch = internalMutation({
 export const pollScores = internalAction({
   args: {},
   handler: async (ctx): Promise<{ matches: number; statRows: number }> => {
-    const sb: any = await fetch(`${BASE}/scoreboard`).then((r) => r.json());
-    const events: any[] = sb.events ?? [];
+    const sb = ScoreboardSchema.parse(await fetch(`${BASE}/scoreboard`).then((r) => r.json()));
+    const events = sb.events ?? [];
     let statRows = 0;
     for (const event of events) {
       const state = event.status?.type?.state ?? "pre";

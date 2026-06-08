@@ -8,18 +8,20 @@
  * No Convex dependency — pure data pipeline.
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { parseEspnSquads, normalizeName, type Pos } from "./parseEspnSquads";
+import { z } from "zod";
+import { parseEspnSquads, normalizeName, PosSchema } from "./parseEspnSquads";
 
-export interface PoolPlayer {
-  name: string;
-  normalizedName: string;
-  position: Pos;
-  club: string;
-  country: string;
-  group: string;
-  espnTeamId: number;
-  espnPlayerId?: number;
-}
+export const PoolPlayerSchema = z.object({
+  name: z.string(),
+  normalizedName: z.string(),
+  position: PosSchema,
+  club: z.string(),
+  country: z.string(),
+  group: z.string(),
+  espnTeamId: z.number(),
+  espnPlayerId: z.number().optional(),
+});
+export type PoolPlayer = z.infer<typeof PoolPlayerSchema>;
 
 const ROSTER_URL = (teamId: number) =>
   `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/teams/${teamId}/roster`;
@@ -30,10 +32,27 @@ function matchKey(raw: string): string {
 }
 const surnameOf = (raw: string) => matchKey(raw).split(" ").pop() ?? "";
 
-interface RosterIndex {
+// Internal in-memory index of live Maps — never crosses a boundary, so it stays a
+// plain type (Zod is for data shapes that are fetched/parsed/persisted).
+type RosterIndex = {
   byKey: Map<string, number>;
   bySurname: Map<string, number[]>; // surname -> ids (only unique ones are usable)
-}
+};
+
+// ESPN per-team roster API; only the athlete name/id fields are consumed.
+const RosterApiSchema = z.object({
+  athletes: z
+    .array(
+      z.object({
+        id: z.union([z.string(), z.number()]).optional(),
+        displayName: z.string().optional(),
+        fullName: z.string().optional(),
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
 
 /** Fetch a team roster and index ids by full key and by surname. */
 async function fetchRosterIndex(teamId: number): Promise<RosterIndex> {
@@ -42,7 +61,7 @@ async function fetchRosterIndex(teamId: number): Promise<RosterIndex> {
   try {
     const res = await fetch(ROSTER_URL(teamId));
     if (!res.ok) return { byKey, bySurname };
-    const json: any = await res.json();
+    const json = RosterApiSchema.parse(await res.json());
     for (const a of json.athletes ?? []) {
       const id = Number(a?.id);
       if (!id) continue;
