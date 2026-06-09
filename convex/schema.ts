@@ -31,6 +31,8 @@ export default defineSchema({
     date: v.string(),
     shortName: v.string(),
     state: v.string(), // pre | in | post
+    homeTeamId: v.optional(v.number()),
+    awayTeamId: v.optional(v.number()),
   }).index("by_espnEventId", ["espnEventId"]),
 
   playerMatchStats: defineTable({
@@ -75,6 +77,8 @@ export default defineSchema({
     order: v.array(v.id("memberships")),
     currentMembershipId: v.optional(v.id("memberships")),
     pickClockSeconds: v.optional(v.number()),
+    pickStartedAt: v.optional(v.number()),
+    autopickJobId: v.optional(v.id("_scheduled_functions")),
   }).index("by_league", ["leagueId"]),
 
   picks: defineTable({
@@ -88,4 +92,12 @@ export default defineSchema({
     .index("by_league", ["leagueId"])
     .index("by_league_player", ["leagueId", "playerId"])
     .index("by_membership", ["membershipId"]),
+
+  draftQueues: defineTable({
+    leagueId: v.id("leagues"),
+    membershipId: v.id("memberships"),
+    playerIds: v.array(v.id("players")),
+  })
+    .index("by_membership", ["membershipId"])
+    .index("by_league_membership", ["leagueId", "membershipId"]),
 });
