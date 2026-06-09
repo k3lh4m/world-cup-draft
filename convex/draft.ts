@@ -19,13 +19,14 @@ import type { Id } from "./_generated/dataModel";
 async function armClock(ctx: MutationCtx, draftId: Id<"drafts">): Promise<void> {
   const draft = await ctx.db.get(draftId);
   if (!draft || draft.status !== "active") return;
+  if (!draft.pickClockSeconds) return;
 
   // Cancel any outstanding autopick job from the previous turn.
   if (draft.autopickJobId) {
     await ctx.scheduler.cancel(draft.autopickJobId);
   }
 
-  const clockMs = (draft.pickClockSeconds ?? 60) * 1000;
+  const clockMs = draft.pickClockSeconds * 1000;
   const jobId = await ctx.scheduler.runAfter(clockMs, internal.draft.autopick, {
     draftId,
     expectedPickIndex: draft.pickIndex,

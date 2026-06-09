@@ -106,6 +106,29 @@ describe("autopick", () => {
     expect(picks[0].membershipId).toBe(memberA);
   });
 
+  it("does not arm an autopick job for an untimed draft", async () => {
+    const t = convexTest(schema, modules);
+    const { userA, leagueId, memberA, memberB, p1, p2 } = await seedLeague(t);
+
+    // Commissioner (A) starts an untimed draft — no pickClockSeconds.
+    const asA = t.withIdentity({ subject: userA });
+    await asA.mutation(api.draft.startDraft, {
+      leagueId,
+      order: [memberA, memberB],
+    });
+
+    // Verify no autopick job was armed at draft start.
+    const draftAfterStart = await asA.query(api.draft.getDraft, { leagueId });
+    expect(draftAfterStart?.autopickJobId).toBeUndefined();
+
+    // On-clock member A makes a manual pick.
+    await asA.mutation(api.draft.makePick, { leagueId, playerId: p1 });
+
+    // After the pick, still no autopick job should be armed.
+    const draftAfterPick = await asA.query(api.draft.getDraft, { leagueId });
+    expect(draftAfterPick?.autopickJobId).toBeUndefined();
+  });
+
   it("is a no-op when expectedPickIndex does not match (stale job)", async () => {
     const t = convexTest(schema, modules);
     const { userA, leagueId, memberA, memberB, p1, p2 } = await seedLeague(t);
