@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { parseFrom, buildMagicLinkEmail } from "../lib/mailerSend";
+import { parseFrom, buildMagicLinkEmail, sendMailerSendEmail } from "../lib/mailerSend";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -36,5 +36,37 @@ describe("buildMagicLinkEmail", () => {
     expect(payload.subject).toBe("Sign in to World Cup Draft");
     expect(payload.html).toContain(url);
     expect(payload.text).toContain(url);
+  });
+});
+
+const samplePayload = {
+  from: { name: "World Cup Draft", email: "magic@send.kelham.co" },
+  to: [{ email: "player@example.com" }],
+  subject: "Sign in to World Cup Draft",
+  html: "<p>link</p>",
+  text: "link",
+};
+
+describe("sendMailerSendEmail", () => {
+  it("POSTs to MailerSend with bearer auth and resolves with the message id on 202", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(null, { status: 202, headers: { "x-message-id": "msg-123" } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await sendMailerSendEmail({ apiKey: "key-abc", payload: samplePayload });
+
+    expect(result).toEqual({ messageId: "msg-123" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.mailersend.com/v1/email",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer key-abc",
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify(samplePayload),
+      }),
+    );
   });
 });

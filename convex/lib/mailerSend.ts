@@ -28,6 +28,29 @@ export type MailerSendPayload = z.infer<typeof MailerSendPayloadSchema>;
 
 const SUBJECT = "Sign in to World Cup Draft";
 
+const MAILERSEND_ENDPOINT = "https://api.mailersend.com/v1/email";
+
+/** Send a pre-built payload via the MailerSend REST API. Throws on non-2xx. */
+export async function sendMailerSendEmail(args: {
+  apiKey: string;
+  payload: MailerSendPayload;
+}): Promise<{ messageId?: string }> {
+  const { apiKey, payload } = args;
+  const res = await fetch(MAILERSEND_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`MailerSend send failed (${res.status})`);
+  }
+  return { messageId: res.headers.get("x-message-id") ?? undefined };
+}
+
 /** Build the MailerSend request body for a magic-link sign-in email. */
 export function buildMagicLinkEmail(args: { to: string; url: string; from: string }): MailerSendPayload {
   const { to, url, from } = args;
