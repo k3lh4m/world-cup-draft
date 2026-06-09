@@ -82,3 +82,55 @@ describe("leagueStandings", () => {
     ).rejects.toThrow(/not a member/i);
   });
 });
+
+describe("manualStat", () => {
+  const SCORING = { goal: 5, assist: 3, cleanSheet: 4, appearance: 1, redCard: -2 };
+  const STAT = {
+    espnPlayerId: 100, espnEventId: "e1", goals: 1, assists: 0,
+    cleanSheet: false, minutes: 90, redCard: false,
+  };
+
+  async function setup() {
+    const t = convexTest(schema, modules);
+    const commish = await t.run((ctx) => ctx.db.insert("users", { name: "C" }));
+    const member = await t.run((ctx) => ctx.db.insert("users", { name: "M" }));
+    const leagueId = await t.run((ctx) =>
+      ctx.db.insert("leagues", {
+        name: "L", commissionerUserId: commish, inviteToken: "tk",
+        rosterSize: 1, scoringRules: SCORING,
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("memberships", { leagueId, userId: commish, displayName: "C", role: "commissioner" }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("memberships", { leagueId, userId: member, displayName: "M", role: "member" }),
+    );
+    return { t, commish, member, leagueId };
+  }
+
+  it("lets the commissioner insert a stat", async () => {
+    const { t, commish, leagueId } = await setup();
+    await t.withIdentity({ subject: commish }).mutation(api.standings.manualStat, { leagueId, ...STAT });
+    const rows = await t.run((ctx) => ctx.db.query("playerMatchStats").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ espnPlayerId: 100, goals: 1, minutes: 90 });
+  });
+
+  it("rejects non-commissioners", async () => {
+    const { t, member, leagueId } = await setup();
+    await expect(
+      t.withIdentity({ subject: member }).mutation(api.standings.manualStat, { leagueId, ...STAT }),
+    ).rejects.toThrow(/commissioner/i);
+  });
+
+  it("upserts on the same event+player instead of duplicating", async () => {
+    const { t, commish, leagueId } = await setup();
+    const id = t.withIdentity({ subject: commish });
+    await id.mutation(api.standings.manualStat, { leagueId, ...STAT });
+    await id.mutation(api.standings.manualStat, { leagueId, ...STAT, goals: 2 });
+    const rows = await t.run((ctx) => ctx.db.query("playerMatchStats").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0].goals).toBe(2);
+  });
+});

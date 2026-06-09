@@ -1,4 +1,4 @@
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireMembership } from "./lib/membership";
 import { scorePlayer, type Stat } from "./lib/scoring";
@@ -50,5 +50,36 @@ export const leagueStandings = query({
     );
 
     return rows.sort((a, b) => b.points - a.points);
+  },
+});
+
+// Commissioner fallback for entering match stats by hand when the ESPN poller
+// has no data (e.g. a friendly, or an event ESPN doesn't cover). Upserts on
+// (espnEventId, espnPlayerId) so re-entering corrects rather than duplicates.
+export const manualStat = mutation({
+  args: {
+    leagueId: v.id("leagues"),
+    espnPlayerId: v.number(),
+    espnEventId: v.string(),
+    goals: v.number(),
+    assists: v.number(),
+    cleanSheet: v.boolean(),
+    minutes: v.number(),
+    redCard: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const member = await requireMembership(ctx, args.leagueId);
+    if (member.role !== "commissioner") {
+      throw new Error("Only the commissioner can enter stats");
+    }
+    const { leagueId: _leagueId, ...stat } = args;
+    const existing = await ctx.db
+      .query("playerMatchStats")
+      .withIndex("by_event_player", (q) =>
+        q.eq("espnEventId", stat.espnEventId).eq("espnPlayerId", stat.espnPlayerId),
+      )
+      .unique();
+    if (existing) await ctx.db.patch(existing._id, stat);
+    else await ctx.db.insert("playerMatchStats", stat);
   },
 });
