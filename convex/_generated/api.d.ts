@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as blindDraft from "../blindDraft.js";
 import type * as crons from "../crons.js";
 import type * as draft from "../draft.js";
 import type * as espn from "../espn.js";
@@ -40,6 +41,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  blindDraft: typeof blindDraft;
   crons: typeof crons;
   draft: typeof draft;
   espn: typeof espn;
