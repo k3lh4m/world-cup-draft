@@ -17,13 +17,15 @@ MailerSend's free tier (3,000 emails/month) lets us verify a domain the user alr
 
 ### Domain decision
 
-MailerSend's free **Trial** plan turned out to allow only **one** custom domain (a
-separate subdomain like `worldcupdraft.kelham.co` requires the paid Starter plan). The
-user's `kelham.co` is already verified on the account, so we send from **`kelham.co`
-directly** (`magic@kelham.co`). A dedicated subdomain (for sending-reputation isolation
-from personal `sam@kelham.co` mail) would need a plan upgrade or deleting+re-adding the
-domain — not worth it at hobby volume. This is purely the `MAILERSEND_FROM` value; moving
-to a subdomain later requires no code change.
+`kelham.co` is the user's **primary personal email domain**, handled by **PurelyMail**
+(Cloudflare is DNS-only). Sending app mail from the *root* would require merging
+MailerSend's SPF `include` into PurelyMail's single SPF record (risking personal-mail
+deliverability) and would mix sending reputations. To avoid that, we use a **dedicated
+sending subdomain, `send.kelham.co`**, as MailerSend's one allowed Trial domain (the root
+`kelham.co` entry was removed from MailerSend; `send.kelham.co` added). The subdomain has
+its own SPF/DKIM/return-path records — fully isolated from PurelyMail's root records, so
+personal email is untouched. From-address: **`magic@send.kelham.co`**. This is purely the
+`MAILERSEND_FROM` value; the code is identical regardless of which verified domain is used.
 
 ## Scope
 
@@ -119,7 +121,7 @@ MailerSend → MailerSend delivers from the verified subdomain → user clicks l
 Set on the Convex deployment (e.g. `npx convex env set …`):
 
 - `MAILERSEND_API_KEY` — MailerSend API token (replaces `AUTH_RESEND_KEY`).
-- `MAILERSEND_FROM` — verified from-address: `World Cup Draft <magic@kelham.co>`
+- `MAILERSEND_FROM` — verified from-address: `World Cup Draft <magic@send.kelham.co>`
   (see "Domain decision"). Env-driven so the domain isn't hardcoded; falls back to the
   testing address if unset.
 
@@ -170,24 +172,24 @@ end-to-end send once the key/domain are live.
 
 ## Manual verification (after user provides key + domain)
 
-1. In MailerSend: `kelham.co` is already added and verified. Complete the account-approval
-   questionnaire so the account can send to addresses other than the owner's. Generate an
-   API token with email-sending permission.
+1. In MailerSend: add `send.kelham.co`; add its SPF/DKIM/return-path records to Cloudflare
+   (Name field strips `.kelham.co`; CNAMEs must be "DNS only" / grey cloud); click Verify.
+   Complete the account-approval questionnaire so the account can send to addresses other
+   than the owner's. Generate an API token with email-sending permission.
 2. `npx convex env set MAILERSEND_API_KEY <token>` and
-   `npx convex env set MAILERSEND_FROM "World Cup Draft <magic@kelham.co>"`.
+   `npx convex env set MAILERSEND_FROM "World Cup Draft <magic@send.kelham.co>"`.
 3. Run the app, request a magic link to your own address, confirm it arrives from
-   `kelham.co` and signs you in.
+   `send.kelham.co` and signs you in.
 
 ## Risks / caveats
 
 - **MailerSend trial accounts can only send to the account owner's email** until the
   account is approved for sending (the approval questionnaire). `kelham.co` is verified, but
   links to *other* users bounce until approval completes. The API key alone is not enough.
-- **Trial plan = one custom domain.** A separate sending subdomain needs the paid Starter
-  plan; hence sending from `kelham.co` directly. (See "Domain decision".)
-- **Shared SPF on `kelham.co`:** if `kelham.co` already sends via another provider, ensure
-  there is a single merged SPF record (multiple SPF TXT records are invalid). DKIM/return-
-  path are per-selector and don't collide.
+- **Trial plan = one custom domain.** `send.kelham.co` is that one domain (root removed).
+- **Isolation from PurelyMail:** because we use the `send.kelham.co` subdomain, none of
+  PurelyMail's root `kelham.co` records (SPF/DKIM/MX) are touched — no SPF-merge risk to
+  personal mail. Cloudflare CNAMEs for MailerSend must be "DNS only" (not proxied).
 - **202-with-empty-body success:** do not attempt to `JSON.parse` the success response body.
 - **Convex isolation:** build/codegen/`yarn dev` deferred to post-merge (per CLAUDE.md);
   the whole TDD loop runs on vitest only.
