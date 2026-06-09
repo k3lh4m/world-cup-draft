@@ -26,7 +26,7 @@ Edit `convex/auth.ts` to import and register `Password` alongside `Resend`:
 ```ts
 import { convexAuth } from "@convex-dev/auth/server";
 import Resend from "@auth/core/providers/resend";
-import Password from "@convex-dev/auth/providers/Password";
+import { Password } from "@convex-dev/auth/providers/Password";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
@@ -37,10 +37,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     }),
     // Email + password for creating test accounts without sending email.
     // Email verification is off by default; default rule requires >= 8 chars.
-    Password,
+    Password(),
   ],
 });
 ```
+
+> Note: `Password` is a **named** export and a factory function (call it), not a default export.
 
 - [ ] **Step 2: Regenerate Convex types and typecheck**
 
