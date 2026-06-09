@@ -30,6 +30,7 @@ import type * as players from "../players.js";
 import type * as queue from "../queue.js";
 import type * as seed from "../seed.js";
 import type * as standings from "../standings.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -60,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   queue: typeof queue;
   seed: typeof seed;
   standings: typeof standings;
+  users: typeof users;
 }>;
 
 /**

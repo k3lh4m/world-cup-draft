@@ -1,13 +1,13 @@
 "use client";
 
-import { Authenticated, Unauthenticated, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
 import { api } from "@/convex/_generated/api";
-import { SignIn } from "@/components/SignIn";
+import { AuthGate } from "@/components/AuthGate";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,27 +21,27 @@ import { Label } from "@/components/ui/label";
 
 export default function Home() {
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 p-6">
-      <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">World Cup Draft</h1>
-        <ThemeToggle />
-      </header>
-      <Unauthenticated>
-        <SignIn />
-      </Unauthenticated>
-      <Authenticated>
+    <AuthGate>
+      <main className="mx-auto w-full max-w-2xl flex-1 p-6">
+        <header className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">World Cup Draft</h1>
+          <ThemeToggle />
+        </header>
         <Dashboard />
-      </Authenticated>
-    </main>
+      </main>
+    </AuthGate>
   );
 }
 
 function Dashboard() {
+  const me = useQuery(api.users.getMe);
   const leagues = useQuery(api.leagues.listMyLeagues) ?? [];
   const createLeague = useMutation(api.leagues.createLeague);
   const router = useRouter();
   const [name, setName] = useState("");
-  const [display, setDisplay] = useState("");
+  // Prefill the per-league display name from the global name (set by RequireName
+  // before this renders, so it's already in the Convex query cache).
+  const [display, setDisplay] = useState(() => me?.name ?? "");
   const [creating, setCreating] = useState(false);
 
   async function onCreate(e: FormEvent) {
