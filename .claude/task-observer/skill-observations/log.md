@@ -369,3 +369,105 @@ DECLINED = user decided not to pursue
 **Suggested improvement:** In the Convex TDD verify-RED step, distinguish between two valid RED states: (1) function missing → framework error about missing export; (2) function exists but assertion fails → domain error mismatch. Both are valid RED, but only (2) means the test assertion wording may need adjustment. The verify-RED step should note: if the error is "no such export," the RED is correct; if the regex doesn't match a domain error, re-examine the assertion.
 
 **Principle:** In convex-test, `api.<module>.<fn>` references that don't exist produce framework-level rejection messages, not domain errors. Seeing a framework error during RED is normal and expected — it means the implementation is missing, which is exactly the state TDD requires.
+
+---
+
+## 2026-06-09 — Task 5: lockIn/forceReveal/nextRound + idempotent resolve (TDD)
+
+### Observation 21: Test spec for global-pool availability had wrong length assertion in isolation test
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Task 5 of blind-draft feature. The spec included a test that seeded two leagues each with 2 players (4 total in the global `players` table), then asserted `availablePlayers` for league B (no draft, none picked/wiped) returned length 2. The actual correct length is 4 because players are global — league B sees all 4 players, none of which are picked/wiped in that league.
+**Skill:** superpowers:test-driven-development
+**Type:** internal
+**Phase/Area:** RED verify step — distinguishing correct vs incorrect test assertions
+
+**Issue:** The spec's isolation test expected `expect(availB).toHaveLength(2)` when the data model uses a global player pool. This caused 10/11 tests to pass but 1 to fail with "expected length 2 but got 4." The test comment said "full availability" — which in a global-pool model means all 4 players (not just the 2 seeded for that league). The fix was to change the assertion to `toHaveLength(4)`, which correctly tests that league A's picks/wipes don't contaminate league B's availability.
+
+**Suggested improvement:** When a spec includes an "isolation" test against a global data pool, verify the expected assertion against the actual pool size. "Full availability" for a league with no draft should equal all players in the test DB (not just players "owned by" that league, since there is no such ownership).
+
+**Principle:** Test assertions in isolation tests must account for the actual scope of the data pool. A global player pool means "full availability" = total players in DB minus this league's picks/wipes. Confirm data-model scoping when spec length expectations don't match the pool size.
+
+---
+
+## 2026-06-09 — Blind-draft orchestration (subagent-driven, worktree)
+
+### Observation 22: Agent subagents execute in the repo root, not the parent session's EnterWorktree worktree
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Orchestrating subagent-driven-development for the blind-draft feature. The parent session had switched into a worktree via EnterWorktree, but the first implementer subagent's `cd <worktree>` did not persist and its commit landed on `main` (the repo root the subagent's shell was pinned to), not on the worktree branch. The work had to be cherry-picked onto the worktree branch and `main` reset.
+
+**Skill:** superpowers:subagent-driven-development (also relates to superpowers:using-git-worktrees)
+**Type:** internal
+**Phase/Area:** Dispatching implementer subagents when the controller is in a worktree
+
+**Issue:** Agent-tool subagents do not inherit the parent session's EnterWorktree-switched working directory; their shell is pinned to the original repo root and resets between Bash calls. A subagent told to "work in the worktree" with relative paths + a one-off `cd` will silently write files and commit on `main` instead.
+
+**Suggested improvement:** When dispatching subagents to operate in a worktree, give an explicit "worktree operating contract": prefix EVERY Bash command with `cd <abs-worktree> && …`, use absolute worktree paths for Read/Write/Edit, run git via the cd prefix (or `git -C <worktree>`), and require the subagent to prove its commit is on the worktree branch (`git branch --show-current` + `git log -1`) before reporting DONE. The controller should verify after each task that `main` was not advanced.
+
+**Principle:** Delegated agents don't share the controller's CWD switches. Any worktree (or non-default directory) targeting must be made explicit and absolute in the agent's instructions, and verified afterward — never assumed.
+
+### Observation 23: `convex codegen` performs a full dev push, not local-only type generation
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** To regenerate `_generated/api.d.ts` so the worktree's `yarn build` would type-check against new `api.blindDraft.*` bindings, ran `yarn convex codegen`. Its output showed "Downloading current deployment state… Uploading functions to Convex" — i.e. it pushed the worktree's schema + functions to the shared anonymous local deployment that another worktree session was using.
+
+**Skill:** (project) AGENTS.md / CLAUDE.md Convex worktree-isolation caveat
+**Type:** internal
+**Phase/Area:** Worktree + Convex isolation; regenerating generated bindings
+
+**Issue:** `convex codegen` in this Convex/CLI version is not generation-only; it connects and deploys (uploads functions + schema). Run from a worktree pointed (via copied `.env.local`) at a shared deployment, it pushes that worktree's in-progress schema to the shared backend — the exact clobber the project's Convex caveat warns about. (Mitigated here because a `convex dev` watching `main` self-heals the deployment, and the change was additive.)
+
+**Suggested improvement:** The CLAUDE.md "Convex isolation caveat" should explicitly warn that `convex codegen` (and any convex command) pushes to whatever `CONVEX_DEPLOYMENT` `.env.local` points at. For type-only regeneration in a worktree without touching a shared backend, provision the worktree's OWN isolated deployment first (`convex dev --once` in the worktree, which rewrites its `.env.local`), or rely on the fact that vitest+convex-test need no codegen at all (the `anyApi` proxy resolves functions at runtime) and defer all codegen/build until the branch is merged.
+
+**Principle:** Treat every `convex` CLI subcommand — including `codegen` — as a deployment-touching operation bound to `CONVEX_DEPLOYMENT`. In multi-worktree setups, never run one against a shared backend; isolate the deployment first or avoid codegen entirely until merge.
+
+---
+
+## 2026-06-09 — Email + password auth (testing-friendly)
+
+### Observation 24: Convex Auth `Password` is a named export AND a factory — not a default export
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Registering email+password. The plan (and the doc-comment in `Password.d.ts`) showed `import Password from "@convex-dev/auth/providers/Password"` and `providers: [Password]`. Both forms are wrong for the installed version: the module has **no default export** (TS2613 / esbuild "no matching export for import default"), and `Password` is a factory function returning a provider config.
+**Skill:** convex-setup-auth (or convex provider-registration notes)
+**Type:** open-source
+**Phase/Area:** Provider registration — import/call shape
+
+**Issue:** Training data and even the library's own JSDoc example use a default import and an uncalled `Password`. The installed build exports `export function Password(config = {})`, so the correct usage is `import { Password } from ".../Password"` and `Password()` (called, like `Resend({...})`). Caught only by typecheck/codegen, not by tests (the component tests mock `signIn`).
+
+**Suggested improvement:** A Convex auth skill should show the named, called form `import { Password } from "@convex-dev/auth/providers/Password"; providers: [Resend({...}), Password()]`, and note that provider doc-comments may show an outdated default-import form — verify against the installed `.d.ts` export line.
+
+**Principle:** Verify a library's import/call shape against its installed `.d.ts`/`.js` exports, not against its own example comments or training data — major versions flip default↔named and value↔factory.
+
+### Observation 25: A shared deployment's running `convex dev` silently reverts a worktree's pushed function — new backend code can't be live-tested from the worktree
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** After `convex codegen` from the worktree deployed the new `Password` provider, a programmatic `auth:signIn` still failed: "Provider `password` is not configured, available providers are `resend`." The main checkout's continuously-running `convex dev` (watching `main`'s `auth.ts`, which lacked `Password`) had re-synced the shared deployment back to its own code, removing the worktree's push.
+**Skill:** superpowers:using-git-worktrees (Convex isolation) — dual of Observation 23
+**Type:** internal
+**Phase/Area:** Live-testing new backend functions from a worktree against a shared deployment
+
+**Issue:** Observation 23 noted a worktree's `codegen` *pushes* to the shared backend; this is the reverse hazard — another checkout's `convex dev` *continuously reverts* that push to match its own (older) code. Net effect: you cannot live-test a brand-new backend function from a worktree while any other checkout runs `convex dev` on the same deployment. The fix that worked: merge to `main` (so the watching `convex dev`'s code now includes the function and stops reverting), then test on `main`.
+
+**Suggested improvement:** When live-testing new backend functions in a multi-worktree Convex setup, either (a) stop every other checkout's `convex dev`, or (b) merge first so the watcher's code matches, or (c) provision the worktree its own deployment. A symptom to recognise: "Provider/function not configured" right after a successful-looking push.
+
+**Principle:** On a shared Convex deployment, the last continuous `convex dev` wins and keeps winning. One-shot pushes from elsewhere are transient. Don't try to validate worktree-only backend changes against a deployment another `convex dev` is actively reconciling.
+
+### Observation 26: Convex Auth flows can be acceptance-tested headlessly via `convex run auth:signIn`
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Needed to prove the password provider worked end-to-end without driving a browser. `npx convex run auth:signIn '{"provider":"password","params":{"email":"…","password":"…","flow":"signUp"}}'` returned `{ tokens: { token, refreshToken } }`, proving the account was created and a session minted.
+**Skill:** convex-setup-auth / a verification skill
+**Type:** open-source
+**Phase/Area:** End-to-end acceptance for auth without a browser
+
+**Issue:** Auth flows usually seem to require a browser (cookies/CSRF/redirects), making "did sign-in actually work?" hard to verify in a headless agent loop. But the underlying `auth:signIn` action is directly callable with `convex run`; a successful call returns JWT + refresh tokens, and the new user/account is then queryable. This closes the "providers configured but never exercised" gap (cf. the empty-`providers:[]` scaffold-completeness lesson) without UI automation.
+
+**Principle:** Convex Auth's `signIn` is a normal callable action; invoke it with `convex run` to acceptance-test sign-up/sign-in headlessly. A returned token pair is proof the provider works end-to-end — stronger than "the UI renders."
