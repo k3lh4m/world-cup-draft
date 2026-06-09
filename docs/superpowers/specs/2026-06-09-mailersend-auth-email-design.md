@@ -12,9 +12,18 @@ Magic-link sign-in emails are sent via Auth.js's built-in Resend provider
 active use. Adding a second sending domain (even a subdomain) requires Resend Pro at
 $20/month — not justified for a hobby project.
 
-MailerSend's free tier (3,000 emails/month) allows **multiple** verified domains, so a
-subdomain of an already-owned domain (e.g. `worldcupdraft.kelham.co` under `kelham.co`)
-can be verified for free. We switch the email transport from Resend to MailerSend.
+MailerSend's free tier (3,000 emails/month) lets us verify a domain the user already owns
+(`kelham.co`) at no cost. We switch the email transport from Resend to MailerSend.
+
+### Domain decision
+
+MailerSend's free **Trial** plan turned out to allow only **one** custom domain (a
+separate subdomain like `worldcupdraft.kelham.co` requires the paid Starter plan). The
+user's `kelham.co` is already verified on the account, so we send from **`kelham.co`
+directly** (`magic@kelham.co`). A dedicated subdomain (for sending-reputation isolation
+from personal `sam@kelham.co` mail) would need a plan upgrade or deleting+re-adding the
+domain — not worth it at hobby volume. This is purely the `MAILERSEND_FROM` value; moving
+to a subdomain later requires no code change.
 
 ## Scope
 
@@ -110,8 +119,9 @@ MailerSend → MailerSend delivers from the verified subdomain → user clicks l
 Set on the Convex deployment (e.g. `npx convex env set …`):
 
 - `MAILERSEND_API_KEY` — MailerSend API token (replaces `AUTH_RESEND_KEY`).
-- `MAILERSEND_FROM` — verified from-address, e.g. `World Cup Draft <magic@worldcupdraft.kelham.co>`.
-  Env-driven so the domain isn't hardcoded; falls back to the testing address if unset.
+- `MAILERSEND_FROM` — verified from-address: `World Cup Draft <magic@kelham.co>`
+  (see "Domain decision"). Env-driven so the domain isn't hardcoded; falls back to the
+  testing address if unset.
 
 `AUTH_RESEND_KEY` becomes unused (left in place; removing it from the deployment is a
 manual cleanup step, not code).
@@ -160,20 +170,24 @@ end-to-end send once the key/domain are live.
 
 ## Manual verification (after user provides key + domain)
 
-1. In MailerSend: add `worldcupdraft.kelham.co` as a domain; add the SPF/DKIM/return-path
-   DNS records it generates to the `kelham.co` DNS zone; wait for verification + account
-   sending approval.
+1. In MailerSend: `kelham.co` is already added and verified. Complete the account-approval
+   questionnaire so the account can send to addresses other than the owner's. Generate an
+   API token with email-sending permission.
 2. `npx convex env set MAILERSEND_API_KEY <token>` and
-   `npx convex env set MAILERSEND_FROM "World Cup Draft <magic@worldcupdraft.kelham.co>"`.
-3. Run the app, request a magic link to your own address, confirm it arrives from the
-   subdomain and signs you in.
+   `npx convex env set MAILERSEND_FROM "World Cup Draft <magic@kelham.co>"`.
+3. Run the app, request a magic link to your own address, confirm it arrives from
+   `kelham.co` and signs you in.
 
 ## Risks / caveats
 
-- **MailerSend trial/unverified accounts can only send to the account owner's email** until
-  the domain is DNS-verified *and* the account is approved for sending. Test with your own
-  address first; links to other users bounce until verification + approval complete. The
-  API key alone is not sufficient — domain verification is the real gate.
+- **MailerSend trial accounts can only send to the account owner's email** until the
+  account is approved for sending (the approval questionnaire). `kelham.co` is verified, but
+  links to *other* users bounce until approval completes. The API key alone is not enough.
+- **Trial plan = one custom domain.** A separate sending subdomain needs the paid Starter
+  plan; hence sending from `kelham.co` directly. (See "Domain decision".)
+- **Shared SPF on `kelham.co`:** if `kelham.co` already sends via another provider, ensure
+  there is a single merged SPF record (multiple SPF TXT records are invalid). DKIM/return-
+  path are per-selector and don't collide.
 - **202-with-empty-body success:** do not attempt to `JSON.parse` the success response body.
 - **Convex isolation:** build/codegen/`yarn dev` deferred to post-merge (per CLAUDE.md);
   the whole TDD loop runs on vitest only.
