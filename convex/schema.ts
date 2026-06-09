@@ -31,6 +31,8 @@ export default defineSchema({
     date: v.string(),
     shortName: v.string(),
     state: v.string(), // pre | in | post
+    homeTeamId: v.optional(v.number()),
+    awayTeamId: v.optional(v.number()),
   }).index("by_espnEventId", ["espnEventId"]),
 
   playerMatchStats: defineTable({
