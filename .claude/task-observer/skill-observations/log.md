@@ -127,3 +127,128 @@ DECLINED = user decided not to pursue
 **Suggested improvement:** In a design-system-integration-review skill, add a check for self-referential `@theme inline` mappings (`--x: var(--x)`). Flag them as fragile-but-working and recommend either mapping directly to the underlying primitive (`--font-sans: var(--font-geist-sans)`) or documenting the indirection. When token resolution is non-obvious, verify against compiled output (`.next/static/**/*.css`) rather than reasoning about the cascade.
 
 **Principle:** Tailwind v4 `@theme inline` resolves `var()` against the `:root` cascade, so `--x: var(--x)` silently aliases to the root definition. This "works" but couples two declarations implicitly; the most robust mapping points at the underlying primitive. Verify non-obvious CSS-variable resolution against compiled output, not source-level reasoning.
+
+---
+
+## 2026-06-08 — Task 13 frontend page review
+
+### Observation 7: Base UI `render` prop pattern should be verified against installed component source, not against Radix/shadcn training data
+
+**Status:** OPEN
+**Date:** 2026-06-08
+**Session context:** Reviewing three Next.js pages (page.tsx, join/[token]/page.tsx, league/[id]/page.tsx) written against a Base UI / base-nova shadcn install. The league page uses `<Button render={<Link href={...} />}>` as a polymorphic link button.
+**Skill:** New skill candidate: design-system-integration-review (extends Observation 5)
+**Type:** open-source
+**Phase/Area:** Reviewing component usage that differs between Radix and Base UI
+
+**Issue:** The `render` prop is Base UI's polymorphic slot pattern (equivalent to Radix's `asChild`). Code that uses `render={<Link />}` is correct for `@base-ui/react/button` but would fail for a Radix-based shadcn install. A reviewer using training-data knowledge of shadcn (Radix) would flag this as invalid; a reviewer checking the installed `components/ui/button.tsx` (which wraps `ButtonPrimitive` from `@base-ui/react/button`) correctly identifies it as valid. The build confirmed no error.
+
+**Suggested improvement:** When reviewing code that uses a non-standard prop on a shadcn component (e.g. `render`, `asChild`, `renderRoot`), always read the installed `components/ui/<component>.tsx` first to confirm the underlying primitive before flagging or approving.
+
+**Principle:** shadcn CLI-generated components are thin wrappers around swappable primitives (Radix, Base UI, Headless UI). API surface — especially polymorphic composition patterns — varies by primitive. Always verify prop usage against the installed component, not the canonical upstream docs.
+
+---
+
+## 2026-06-09 — Continue worldcup-draft plan (frontend T13–T16)
+
+### Observation 8: Worktree isolation was skipped because CLAUDE.md framed it under "parallel work"
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** User asked to continue the worldcup-draft plan. I began investigation and decisions directly in the primary checkout; the user challenged it twice ("is this running on a worktree like I asked in the claude md", "you should be working from the main branch then on a worktree").
+**Skill:** superpowers:using-git-worktrees (also devils-advocate: unchallenged process decision)
+**Type:** open-source
+**Phase/Area:** Session start — isolation check timing
+
+**Issue:** CLAUDE.md mandates worktree isolation but presents it under a heading "Parallel work across terminals" / "work on multiple features at once." I read that framing as making worktrees *conditional* on parallel/multi-feature work and rationalized skipping it for a single continuation task. The using-git-worktrees skill's Step 0 (detect isolation / create worktree) should run at the START of any feature work, before reads/edits, unconditionally.
+
+**Suggested improvement:** using-git-worktrees should state that the isolation check is the FIRST action of any implementation session and is not gated on whether the work is "parallel" — the parallel-terminals scenario is one motivation, not the trigger condition. Projects whose CLAUDE.md mandates worktrees should pair the instruction with a hook that warns when editing the primary checkout. (Mechanical-backstop pattern, cf. Observation 5 on TDD.)
+
+**Principle:** When a convention's *motivation* (parallel work) is narrower than its *scope* (all feature work), the motivating framing causes the convention to be skipped in the non-motivating-but-in-scope cases. State the trigger condition separately from the motivation.
+
+### Observation 9: Plan/doc text used `npm` but the project uses yarn — trust the lockfile, not prose
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Establishing the worktree baseline. The worldcup-draft plan text says `npm install` / `npm test`, and settings allow `npm *`, so I ran `npm install` — which dropped a `package-lock.json` into a yarn project (`yarn.lock` present, Yarn 1.22). User corrected: "we are using yarn not npm."
+**Skill:** superpowers:using-git-worktrees (Step 3 project setup) / executing-plans
+**Type:** open-source
+**Phase/Area:** Dependency install — package-manager detection
+
+**Issue:** I followed the package manager named in the plan prose rather than detecting it from the repo. The project has `yarn.lock` (and CLAUDE.md/AGENTS.md were mid-migration to say yarn). Running npm created a competing lockfile and churned the resolved tree; cleanup required removing `package-lock.json` and reinstalling with `yarn --frozen-lockfile`.
+
+**Suggested improvement:** Project-setup steps should detect the package manager from the lockfile (`yarn.lock` → yarn, `pnpm-lock.yaml` → pnpm, `package-lock.json` → npm) and ignore the command names written in plans/docs, which drift. Add to using-git-worktrees Step 3 and any executing-plans setup.
+
+**Principle:** The lockfile is ground truth for the package manager; plan/doc prose is a lagging indicator. Detect from repo state, not from instructions, and never introduce a second lockfile.
+
+### Observation 10: A "scaffold auth" commit looked complete but was non-functional (providers: [])
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Reconciling the plan against the backend before building the frontend. A prior commit "scaffold Convex Auth with email sign-in" had `convex/auth.ts` with `providers: []`, while `components/SignIn.tsx` already called `signIn("resend", …)`. No provider was wired and no `AUTH_RESEND_KEY` existed, so `<Authenticated>` could never become true and every end-to-end verification step was silently blocked.
+**Skill:** convex-setup-auth (or new: scaffold-completeness-review)
+**Type:** open-source
+**Phase/Area:** Verifying that scaffolding is wired end-to-end, not merely present
+
+**Issue:** The presence of auth files (auth.ts, auth.config.ts, http.ts, SignIn.tsx, middleware) read as "auth done," but the provider array was empty — a functional gap invisible to file-existence checks and to typecheck/build (empty providers compiles fine). It only surfaces at runtime as "can never sign in."
+
+**Suggested improvement:** When a task depends on scaffolded infrastructure (auth, payments, env-backed clients), verify the wiring is complete — non-empty provider/route arrays, referenced provider ids actually registered, required env vars present — before building features on top. A scaffold-completeness check should enumerate the runtime preconditions, not just the files.
+
+**Principle:** "Files exist" and "typecheck/build pass" do not imply "functional." Configuration arrays that are syntactically valid when empty (auth providers, route lists, middleware matchers) are a common silent-gap location; verify them against their runtime contract.
+
+---
+
+## 2026-06-09 — Draft board + pre-draft queue (enh 18, 19)
+
+### Observation 11: zsh glob expansion breaks git add for paths containing square brackets
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Committing new components and updated pages after implementing draft board and queue. Running `git add app/league/[id]/draft/page.tsx` failed with "no matches found: app/league/[id]/draft/page.tsx" on zsh because zsh expands `[id]` as a character class glob.
+**Skill:** New skill candidate: git-worktree-operations / executing-plans (commit step)
+**Type:** open-source
+**Phase/Area:** Commit — staging files with special characters in paths
+
+**Issue:** zsh expands `[...]` in bare arguments as a glob character class. A path like `app/league/[id]/draft/page.tsx` causes "no matches found" unless the path is quoted or `noglob` is used. The same issue affects any Next.js dynamic-segment path (`[id]`, `[token]`, `[slug]`, etc.).
+
+**Suggested improvement:** In any skill covering git commits (executing-plans, using-git-worktrees), add: "Always double-quote file paths containing square brackets when using git add on zsh. Alternatively, use `git add -u` (stages all tracked modified files) or `git add <directory>/` to stage by directory."
+
+**Principle:** zsh treats `[...]` in unquoted arguments as glob character classes, which silently breaks file paths common in Next.js (dynamic route segments). Quote all paths with square brackets or use directory-level staging.
+
+---
+
+## 2026-06-09 — Fix untimed-draft autopick bug (enh 20)
+
+### Observation 12: convex-test doesn't fire scheduled jobs, so scheduler-arm bugs need explicit assertion on autopickJobId
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Bug fix: `armClock` was being called for drafts without `pickClockSeconds`, arming unwanted 60-second autopick jobs. The existing test suite had 53 tests and none caught it.
+**Skill:** superpowers:test-driven-development (also relevant to convex test patterns)
+**Type:** open-source
+**Phase/Area:** Test coverage for scheduler-side effects in Convex mutations
+
+**Issue:** `convex-test` never fires scheduled jobs, so a bug where `ctx.scheduler.runAfter(...)` is called for untimed drafts was invisible to all existing tests. The scheduler call succeeds silently; no error is thrown, and no downstream effects appear in test assertions. The bug only manifests in a real deployed environment where the scheduler actually fires.
+
+**Suggested improvement:** When writing Convex mutations that conditionally arm a scheduler job, include a test that asserts `doc.jobId === undefined` for the case where no job should be armed. This provides coverage against the class of bug where a scheduler call is made unconditionally rather than conditionally, even though convex-test won't simulate the job firing.
+
+**Principle:** In convex-test, scheduler calls are accepted but never executed — so scheduler-related bugs require tests that assert absence (e.g. `autopickJobId === undefined`) not just presence. Any Convex feature that conditionally schedules a job should have at least one test for the "no job should be scheduled" path.
+
+---
+
+## 2026-06-09 — Live ticker (enh 21)
+
+### Observation 13: ESPN competitor shape is undocumented — parse as deeply optional to survive TBD fixtures
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Implementing the "your players playing now" live ticker (enhancement 21). Needed homeTeamId/awayTeamId from ESPN scoreboard `events[].competitions[].competitors[]`.
+**Skill:** New skill candidate: convex-espn-integration (or addition to a defensive-parsing skill)
+**Type:** open-source
+**Phase/Area:** ESPN API schema design — deeply optional parsing
+
+**Issue:** The ESPN public scoreboard API does not publish a schema. Fields like `competitions`, `competitors`, `homeAway`, and `team.id` are absent for placeholder fixtures (TBD opponents in knockout stages). Parsing these with `z.object({ ... })` rather than `z.object({ ... }).optional()` at every level would throw on valid but incomplete event data. The solution is to use `?.` chains everywhere and default 0 → `undefined` for the numeric ID, which maps cleanly to `v.optional(v.number())` in the Convex schema.
+
+**Suggested improvement:** Any skill covering ESPN API integration should recommend marking all fields beyond `id`, `date`, and top-level `status` as optional, and using numeric defaults (0 → undefined) for team/player IDs rather than throwing when absent.
+
+**Principle:** Public sports APIs routinely include structurally incomplete rows for future/placeholder fixtures. The safe default is to treat every field after the event identifier as optional and to make absence explicit (undefined/null) rather than letting a parse failure discard the entire batch.
