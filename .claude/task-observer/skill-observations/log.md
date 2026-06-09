@@ -12,7 +12,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 1: Security implementation produces cross-cutting gap patterns worth capturing
 
-**Status:** OPEN
+**Status:** ACTIONED — created `.claude/skills/security-implementation-review` (weekly review 2026-06-09)
 **Date:** 2026-04-29
 **Session context:** Full cross-task security audit review of 15-task auth security implementation
 **Skill:** New skill candidate: security-implementation-review
@@ -27,7 +27,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 2: Token-lifecycle gap should be challenged at design stage, not just implementation review
 
-**Status:** OPEN
+**Status:** ACTIONED — created `.claude/skills/security-implementation-review` (design-stage trigger) (weekly review 2026-06-09)
 **Date:** 2026-06-08
 **Session context:** Brainstorming the multi-tenant leagues + league-admin design for WorldCupDraft (spec `docs/superpowers/specs/2026-06-08-multi-tenant-leagues-design.md`)
 **Skill:** devils-advocate (also reinforces new-skill candidate `security-implementation-review` from Observation 1)
@@ -46,7 +46,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 3: shadcn v4 CLI has breaking changes vs v1 — `--base-color` flag does not exist
 
-**Status:** OPEN
+**Status:** ACTIONED — created `.claude/skills/design-system-integration-review` (weekly review 2026-06-09)
 **Date:** 2026-06-08
 **Session context:** Installing shadcn/ui (Task 1 of 6) into a Next.js 16 / React 19 / Tailwind v4 project
 **Skill:** New skill candidate: shadcn-setup (or improvement to vercel:shadcn)
@@ -100,7 +100,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 5: Vendored/generated components can drop CSS positioning that hand-written wrappers silently depend on
 
-**Status:** OPEN
+**Status:** ACTIONED — created `.claude/skills/design-system-integration-review` (weekly review 2026-06-09)
 **Date:** 2026-06-08
 **Session context:** Spec-compliance + code-quality review of a shadcn/ui (base-nova / Base UI) integration into a Next.js 16 app
 **Skill:** New skill candidate: design-system-integration-review (or addition to a code-review checklist)
@@ -115,7 +115,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 6: Self-referential `@theme inline` token aliases work but are a tautology trap worth flagging
 
-**Status:** OPEN
+**Status:** ACTIONED — created `.claude/skills/design-system-integration-review` (weekly review 2026-06-09)
 **Date:** 2026-06-08
 **Session context:** Same shadcn/ui + Tailwind v4 token-theming review
 **Skill:** New skill candidate / addition to design-system-integration-review
@@ -134,7 +134,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 7: Base UI `render` prop pattern should be verified against installed component source, not against Radix/shadcn training data
 
-**Status:** OPEN
+**Status:** ACTIONED — created `.claude/skills/design-system-integration-review` (weekly review 2026-06-09)
 **Date:** 2026-06-08
 **Session context:** Reviewing three Next.js pages (page.tsx, join/[token]/page.tsx, league/[id]/page.tsx) written against a Base UI / base-nova shadcn install. The league page uses `<Button render={<Link href={...} />}>` as a polymorphic link button.
 **Skill:** New skill candidate: design-system-integration-review (extends Observation 5)
@@ -153,7 +153,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 8: Worktree isolation was skipped because CLAUDE.md framed it under "parallel work"
 
-**Status:** OPEN
+**Status:** ACTIONED — CLAUDE.md "Worktree isolation" reframed (trigger ≠ motivation) (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** User asked to continue the worldcup-draft plan. I began investigation and decisions directly in the primary checkout; the user challenged it twice ("is this running on a worktree like I asked in the claude md", "you should be working from the main branch then on a worktree").
 **Skill:** superpowers:using-git-worktrees (also devils-advocate: unchallenged process decision)
@@ -168,7 +168,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 9: Plan/doc text used `npm` but the project uses yarn — trust the lockfile, not prose
 
-**Status:** OPEN
+**Status:** ACTIONED — CLAUDE.md worktree setup rules (detect PM from lockfile) (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** Establishing the worktree baseline. The worldcup-draft plan text says `npm install` / `npm test`, and settings allow `npm *`, so I ran `npm install` — which dropped a `package-lock.json` into a yarn project (`yarn.lock` present, Yarn 1.22). User corrected: "we are using yarn not npm."
 **Skill:** superpowers:using-git-worktrees (Step 3 project setup) / executing-plans
@@ -202,7 +202,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 11: zsh glob expansion breaks git add for paths containing square brackets
 
-**Status:** OPEN
+**Status:** ACTIONED — CLAUDE.md worktree setup rules (quote `[id]` paths) (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** Committing new components and updated pages after implementing draft board and queue. Running `git add app/league/[id]/draft/page.tsx` failed with "no matches found: app/league/[id]/draft/page.tsx" on zsh because zsh expands `[id]` as a character class glob.
 **Skill:** New skill candidate: git-worktree-operations / executing-plans (commit step)
@@ -221,7 +221,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 12: convex-test doesn't fire scheduled jobs, so scheduler-arm bugs need explicit assertion on autopickJobId
 
-**Status:** OPEN
+**Status:** ACTIONED — AGENTS.md "Convex testing gotchas" (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** Bug fix: `armClock` was being called for drafts without `pickClockSeconds`, arming unwanted 60-second autopick jobs. The existing test suite had 53 tests and none caught it.
 **Skill:** superpowers:test-driven-development (also relevant to convex test patterns)
@@ -259,7 +259,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 14: TDD pure-logic resolver — no issues, clean execution
 
-**Status:** OPEN
+**Status:** ACTIONED — positive signal noted; informs AGENTS.md "Convex testing gotchas" (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** Implementing Task 1 of the blind-collision draft feature — pure `resolveRound()` function (no I/O, no Convex, isolated).
 **Skill:** superpowers:test-driven-development (positive signal: clean execution)
@@ -278,7 +278,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 15: Native worktree tool (EnterWorktree) defaults to remote head and can't be reconfigured to local HEAD via settings
 
-**Status:** OPEN
+**Status:** ACTIONED — CLAUDE.md worktree section (base-ref guidance + git fallback) (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** Setting up an isolated worktree for the auth-screen feature. `EnterWorktree` defaults to `worktree.baseRef: fresh` (branches from `origin/<default>`); local `main` was 3+ commits ahead of `origin/main`, so the default base would have missed the just-committed spec. Setting `worktree.baseRef: "head"` in `.claude/settings.local.json` was denied by the auto-mode classifier as "self-modification of agent config."
 **Skill:** superpowers:using-git-worktrees
@@ -293,7 +293,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 16: CLAUDE.md Convex caveat assumes `.env.local` is copied into worktrees — false for the native worktree tool
 
-**Status:** OPEN
+**Status:** ACTIONED — CLAUDE.md worktree setup rules (copy `.env.local` before convex) (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** After adding `convex/users.ts`, `npx convex codegen` failed with "No CONVEX_DEPLOYMENT set." The `EnterWorktree`-created worktree had no `.env.local` (gitignored; native worktree creation doesn't copy ignored files). Project CLAUDE.md states ".env.local is copied into every worktree."
 **Skill:** superpowers:using-git-worktrees (Convex isolation note) / project CLAUDE.md
@@ -308,7 +308,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 17: New Convex function passes convex-test (runtime glob) but fails tsc until codegen regenerates api.d.ts
 
-**Status:** OPEN
+**Status:** ACTIONED — AGENTS.md "Convex testing gotchas" (tests ≠ typecheck) (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** `convex/users.ts` + `convex/tests/users.test.ts` went RED→GREEN (7/7) from the `import.meta.glob` resolution, while `tsc --noEmit` failed with "Property 'users' does not exist on api" because `convex/_generated/api.d.ts` was stale. Fixed with `npx convex codegen`.
 **Skill:** superpowers:test-driven-development (Convex variant)
@@ -357,7 +357,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 20: convex-test `rejects.toThrow` reports the full framework wrapper error, not just the inner message
 
-**Status:** OPEN
+**Status:** ACTIONED — AGENTS.md "Convex testing gotchas" (RED shows framework error) (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** Task 4 RED step — two new tests failed because `setSelection`/`blindRoundState` had no export yet. The first test's `rejects.toThrow(/no blind draft/i)` received the framework message "Expected a Convex function exported from module ... but there is no such export" rather than the domain error. This confirmed RED for the right reason (missing export) even though the regex didn't match. Only the second test triggered a regex mismatch in the failure output.
 **Skill:** superpowers:test-driven-development (Convex variant)
@@ -376,7 +376,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 21: Test spec for global-pool availability had wrong length assertion in isolation test
 
-**Status:** OPEN
+**Status:** ACTIONED — AGENTS.md "Convex testing gotchas" (global vs league-scoped) (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** Task 5 of blind-draft feature. The spec included a test that seeded two leagues each with 2 players (4 total in the global `players` table), then asserted `availablePlayers` for league B (no draft, none picked/wiped) returned length 2. The actual correct length is 4 because players are global — league B sees all 4 players, none of which are picked/wiped in that league.
 **Skill:** superpowers:test-driven-development
@@ -395,7 +395,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 22: Agent subagents execute in the repo root, not the parent session's EnterWorktree worktree
 
-**Status:** OPEN
+**Status:** ACTIONED — CLAUDE.md "Dispatching subagents into a worktree" (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** Orchestrating subagent-driven-development for the blind-draft feature. The parent session had switched into a worktree via EnterWorktree, but the first implementer subagent's `cd <worktree>` did not persist and its commit landed on `main` (the repo root the subagent's shell was pinned to), not on the worktree branch. The work had to be cherry-picked onto the worktree branch and `main` reset.
 
@@ -411,7 +411,7 @@ DECLINED = user decided not to pursue
 
 ### Observation 23: `convex codegen` performs a full dev push, not local-only type generation
 
-**Status:** OPEN
+**Status:** ACTIONED — CLAUDE.md "Convex isolation caveat" (codegen pushes) (weekly review 2026-06-09)
 **Date:** 2026-06-09
 **Session context:** To regenerate `_generated/api.d.ts` so the worktree's `yarn build` would type-check against new `api.blindDraft.*` bindings, ran `yarn convex codegen`. Its output showed "Downloading current deployment state… Uploading functions to Convex" — i.e. it pushed the worktree's schema + functions to the shared anonymous local deployment that another worktree session was using.
 
