@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireMembership } from "./lib/membership";
 import { scorePlayer, type Stat } from "./lib/scoring";
+import { groupByDate } from "./lib/matchday";
 
 export const leagueStandings = query({
   args: { leagueId: v.id("leagues") },
@@ -50,6 +51,59 @@ export const leagueStandings = query({
     );
 
     return rows.sort((a, b) => b.points - a.points);
+  },
+});
+
+export const matchdayBreakdown = query({
+  args: { leagueId: v.id("leagues") },
+  handler: async (ctx, { leagueId }) => {
+    await requireMembership(ctx, leagueId);
+    const league = (await ctx.db.get(leagueId))!;
+    const members = await ctx.db
+      .query("memberships")
+      .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+      .collect();
+    const picks = await ctx.db
+      .query("picks")
+      .withIndex("by_league", (q) => q.eq("leagueId", leagueId))
+      .collect();
+    const matches = await ctx.db.query("matches").collect();
+    const dateOf = new Map(matches.map((m) => [m.espnEventId, m.date]));
+
+    return Promise.all(
+      members.map(async (m) => {
+        const myPicks = picks.filter((p) => p.membershipId === m._id);
+        const rows: { date: string; points: number }[] = [];
+        for (const pk of myPicks) {
+          const player = await ctx.db.get(pk.playerId);
+          if (!player?.espnPlayerId) continue;
+          const stats = await ctx.db
+            .query("playerMatchStats")
+            .withIndex("by_player", (q) =>
+              q.eq("espnPlayerId", player.espnPlayerId!),
+            )
+            .collect();
+          for (const s of stats) {
+            const statArr: Stat[] = [
+              {
+                goals: s.goals,
+                assists: s.assists,
+                cleanSheet: s.cleanSheet,
+                minutes: s.minutes,
+                redCard: s.redCard,
+              },
+            ];
+            const pts = scorePlayer(statArr, player.position, league.scoringRules);
+            rows.push({ date: dateOf.get(s.espnEventId) ?? s.espnEventId, points: pts });
+          }
+        }
+        return {
+          membershipId: m._id,
+          displayName: m.displayName,
+          matchdays: groupByDate(rows),
+        };
+      }),
+    );
   },
 });
 

@@ -18,6 +18,7 @@ import type * as lib_clock from "../lib/clock.js";
 import type * as lib_draftBoard from "../lib/draftBoard.js";
 import type * as lib_draftView from "../lib/draftView.js";
 import type * as lib_espnSummary from "../lib/espnSummary.js";
+import type * as lib_matchday from "../lib/matchday.js";
 import type * as lib_membership from "../lib/membership.js";
 import type * as lib_playerFilter from "../lib/playerFilter.js";
 import type * as lib_queue from "../lib/queue.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   "lib/draftBoard": typeof lib_draftBoard;
   "lib/draftView": typeof lib_draftView;
   "lib/espnSummary": typeof lib_espnSummary;
+  "lib/matchday": typeof lib_matchday;
   "lib/membership": typeof lib_membership;
   "lib/playerFilter": typeof lib_playerFilter;
   "lib/queue": typeof lib_queue;
