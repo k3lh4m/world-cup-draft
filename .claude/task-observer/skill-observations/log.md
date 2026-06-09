@@ -252,3 +252,120 @@ DECLINED = user decided not to pursue
 **Suggested improvement:** Any skill covering ESPN API integration should recommend marking all fields beyond `id`, `date`, and top-level `status` as optional, and using numeric defaults (0 → undefined) for team/player IDs rather than throwing when absent.
 
 **Principle:** Public sports APIs routinely include structurally incomplete rows for future/placeholder fixtures. The safe default is to treat every field after the event identifier as optional and to make absence explicit (undefined/null) rather than letting a parse failure discard the entire batch.
+
+---
+
+## 2026-06-09 — Task 1: Blind-collision round resolver (pure TDD)
+
+### Observation 14: TDD pure-logic resolver — no issues, clean execution
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Implementing Task 1 of the blind-collision draft feature — pure `resolveRound()` function (no I/O, no Convex, isolated).
+**Skill:** superpowers:test-driven-development (positive signal: clean execution)
+**Type:** internal
+**Phase/Area:** TDD validation — no regressions, clean worktree isolation
+
+**Issue:** None observed. Task executed cleanly: RED (test fails on missing module) → GREEN (5 tests pass) → REFACTOR (no changes needed, code is minimal). All 64 tests across the repo remain passing. Commit created with clean working tree. No decisions required mid-task, no blockers, no conflicts.
+
+**Suggested improvement:** None — this is a model execution. This observation serves as a positive data point confirming that the TDD flow (test-first, verify fail, implement, verify pass) produces correct code without iteration when the specification is clear.
+
+**Principle:** Pure-logic functions isolated from I/O, schema, and frameworks are the easiest test-first targets. When TDD fails it's usually due to unclear spec or I/O dependencies; when spec is crisp and scope is pure logic, TDD flow is frictionless.
+
+---
+
+## 2026-06-09 — Magic-link auth screen (shadcn UI)
+
+### Observation 15: Native worktree tool (EnterWorktree) defaults to remote head and can't be reconfigured to local HEAD via settings
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Setting up an isolated worktree for the auth-screen feature. `EnterWorktree` defaults to `worktree.baseRef: fresh` (branches from `origin/<default>`); local `main` was 3+ commits ahead of `origin/main`, so the default base would have missed the just-committed spec. Setting `worktree.baseRef: "head"` in `.claude/settings.local.json` was denied by the auto-mode classifier as "self-modification of agent config."
+**Skill:** superpowers:using-git-worktrees
+**Type:** open-source
+**Phase/Area:** Step 1a — native worktree tool base-ref selection
+
+**Issue:** The skill says to prefer native worktree tools, but `EnterWorktree`'s base ref is a config setting Claude cannot edit (self-config edits are blocked). When local HEAD is ahead of remote, the native default (`fresh`/remote) silently produces a worktree missing recent local work. Workaround: `git worktree add <path> -b <branch> HEAD` then `EnterWorktree {path}` to enter it. (Here the user actually wanted remote head, so the native default was correct — but only by luck.)
+
+**Suggested improvement:** using-git-worktrees Step 1a should add: before using a native worktree tool, confirm whether the branch should be based on local HEAD or remote default, and check `git rev-list --count origin/<default>..HEAD`. If local is ahead and the tool defaults to remote, either change the base-ref setting (if permitted) or fall back to `git worktree add … HEAD` + enter-by-path. Agent-config edits may be blocked, so keep the git-fallback available.
+
+**Principle:** "Prefer native tools" assumes the tool's defaults match intent. When a native tool's behaviour is governed by config the agent can't change, the git fallback isn't a regression — it's the way to honour intent. Always confirm the base ref before branching.
+
+### Observation 16: CLAUDE.md Convex caveat assumes `.env.local` is copied into worktrees — false for the native worktree tool
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** After adding `convex/users.ts`, `npx convex codegen` failed with "No CONVEX_DEPLOYMENT set." The `EnterWorktree`-created worktree had no `.env.local` (gitignored; native worktree creation doesn't copy ignored files). Project CLAUDE.md states ".env.local is copied into every worktree."
+**Skill:** superpowers:using-git-worktrees (Convex isolation note) / project CLAUDE.md
+**Type:** internal
+**Phase/Area:** Step 3 project setup — env files in worktrees
+
+**Issue:** The CLAUDE.md "Convex isolation caveat" premise holds only for tools that clone the working dir; native `EnterWorktree` creates a clean checkout without gitignored files. New Convex function files then can't be codegen'd/typechecked until `.env.local` (with `CONVEX_DEPLOYMENT`) is copied in manually.
+
+**Suggested improvement:** Update the project CLAUDE.md Convex caveat to note `.env.local` is NOT automatically present in native worktrees — copy it (`cp ../../../.env.local .env.local`) before any `convex` CLI command. Add this to Step 3 for Convex projects.
+
+**Principle:** Worktree env parity cannot be assumed; gitignored config (`.env.local`) is exactly what a clean worktree lacks. State the env-bootstrap step explicitly for any backend that reads ignored env files.
+
+### Observation 17: New Convex function passes convex-test (runtime glob) but fails tsc until codegen regenerates api.d.ts
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** `convex/users.ts` + `convex/tests/users.test.ts` went RED→GREEN (7/7) from the `import.meta.glob` resolution, while `tsc --noEmit` failed with "Property 'users' does not exist on api" because `convex/_generated/api.d.ts` was stale. Fixed with `npx convex codegen`.
+**Skill:** superpowers:test-driven-development (Convex variant)
+**Type:** open-source
+**Phase/Area:** Verify-green step for new Convex functions
+
+**Issue:** convex-test resolves functions at runtime via the module glob, so a brand-new function file makes tests pass before the generated typed `api` knows about it. Green tests do NOT imply a green typecheck for new Convex functions; the generated `api.d.ts` must be regenerated (`convex codegen`, which needs `CONVEX_DEPLOYMENT`).
+
+**Suggested improvement:** For Convex TDD, after GREEN add an explicit step: `npx convex codegen` then `tsc --noEmit` before claiming done.
+
+**Principle:** When the test runner and the type system resolve symbols by different mechanisms (runtime glob vs generated declarations), passing tests and passing types are independent gates. Check both for new code that feeds a codegen step.
+
+### Observation 18: Reusable recipe — adding a React/jsdom component-test harness to a Convex+Next vitest project
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Project ran vitest in `node` env with no React harness. Added: deps `jsdom @testing-library/react @testing-library/dom @testing-library/user-event @testing-library/jest-dom @vitejs/plugin-react vite`; config gained `plugins:[react()]`, `resolve.alias` mirroring tsconfig `@/*`, `include` for `components/**/*.test.tsx`, `setupFiles` importing `@testing-library/jest-dom/vitest` + `cleanup()`. Component tests opt into jsdom via per-file `// @vitest-environment jsdom`. vitest 4 needed `vite ^8`.
+**Skill:** New skill candidate: vitest-react-harness (or addition to a frontend-testing skill)
+**Type:** open-source
+**Phase/Area:** Test infrastructure setup in a mixed node/edge/jsdom vitest project
+
+**Issue:** Two non-obvious gotchas: (1) vitest does NOT read tsconfig `paths`, so `@/` imports fail until `resolve.alias` is added; (2) keeping default env `node` and selecting jsdom per-file (docblock) avoids breaking existing node/edge tests.
+
+**Suggested improvement:** A harness skill should ship this recipe and call out the alias requirement and per-file env-docblock pattern for mixed-environment vitest repos.
+
+**Principle:** In a mixed-environment vitest repo, scope new test environments per-file rather than globally, and remember vitest needs its own path-alias config independent of tsconfig.
+
+### Observation 19: Convex Auth magic-link drops sign-in params at verification — extra profile fields must be captured post-sign-in
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Design question of collecting a name on the magic-link screen. Verified against installed `@convex-dev/auth` source: `verifyCodeAndSignIn.js` builds the `createOrUpdateUser` profile as hardcoded `{ email, phone }`, and the params stored at code-creation are only `{ email, phone }` — so any extra field typed when requesting the link is dropped across the email round-trip.
+**Skill:** convex-setup-auth (or new: convex-auth-magic-link)
+**Type:** open-source
+**Phase/Area:** Email/magic-link provider — profile/param persistence
+
+**Issue:** A natural design ("type name + email → name saved") silently fails with Convex Auth email providers: extra params don't survive verification and no `createOrUpdateUser` hook sees them for the email flow. Detectable only by reading installed library source, not from training-data assumptions about Auth.js providers.
+
+**Suggested improvement:** A Convex auth skill should state that email/magic-link sign-in carries only email/phone through verification; collect additional profile fields (name, etc.) in a separate post-sign-in mutation gated on the authenticated session.
+
+**Principle:** Magic-link verification is a fresh, possibly cross-device request that only trusts the verified identifier; treat pre-verification form fields as non-durable. Verify provider param-persistence against installed source before designing a one-screen capture.
+
+---
+
+## 2026-06-09 — Task 4: setSelection + blindRoundState (TDD)
+
+### Observation 20: convex-test `rejects.toThrow` reports the full framework wrapper error, not just the inner message
+
+**Status:** OPEN
+**Date:** 2026-06-09
+**Session context:** Task 4 RED step — two new tests failed because `setSelection`/`blindRoundState` had no export yet. The first test's `rejects.toThrow(/no blind draft/i)` received the framework message "Expected a Convex function exported from module ... but there is no such export" rather than the domain error. This confirmed RED for the right reason (missing export) even though the regex didn't match. Only the second test triggered a regex mismatch in the failure output.
+**Skill:** superpowers:test-driven-development (Convex variant)
+**Type:** open-source
+**Phase/Area:** Verify-RED step for Convex mutations
+
+**Issue:** When `convex-test` is given a reference to a non-existent export via the api proxy, the rejection message is the framework's own "no such export" string, not the handler's domain error. A `rejects.toThrow(/domain-pattern/i)` assertion therefore fails at RED with the wrong error message — but only when the export is missing. Once the export exists, the domain error surfaces correctly. The RED failure output can mislead a reader into thinking the test logic is broken.
+
+**Suggested improvement:** In the Convex TDD verify-RED step, distinguish between two valid RED states: (1) function missing → framework error about missing export; (2) function exists but assertion fails → domain error mismatch. Both are valid RED, but only (2) means the test assertion wording may need adjustment. The verify-RED step should note: if the error is "no such export," the RED is correct; if the regex doesn't match a domain error, re-examine the assertion.
+
+**Principle:** In convex-test, `api.<module>.<fn>` references that don't exist produce framework-level rejection messages, not domain errors. Seeing a framework error during RED is normal and expected — it means the implementation is missing, which is exactly the state TDD requires.
