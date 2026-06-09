@@ -19,6 +19,13 @@ describe("parseFrom", () => {
       email: "magic@send.kelham.co",
     });
   });
+
+  it("trims surrounding whitespace from the display name", () => {
+    expect(parseFrom("   World Cup Draft   <magic@send.kelham.co>")).toEqual({
+      name: "World Cup Draft",
+      email: "magic@send.kelham.co",
+    });
+  });
 });
 
 describe("buildMagicLinkEmail", () => {
@@ -95,5 +102,11 @@ describe("sendMailerSendEmail", () => {
     await expect(
       sendMailerSendEmail({ apiKey: "key-abc", payload: samplePayload }),
     ).rejects.toThrow(/500/);
+  });
+
+  it("resolves with messageId undefined when the x-message-id header is absent", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 202 })));
+    const result = await sendMailerSendEmail({ apiKey: "key-abc", payload: samplePayload });
+    expect(result).toEqual({ messageId: undefined });
   });
 });
