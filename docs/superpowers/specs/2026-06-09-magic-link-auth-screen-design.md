@@ -46,6 +46,10 @@ sign-in, not on the magic-link request screen.
   `redirectTo`.
 - **One shared `<AuthGate>` wrapper** composes the pattern so the homepage and join page
   don't duplicate it.
+- **Per-league display-name fields prefill from the global name** (in `Dashboard` and
+  `JoinForm`) — included, not optional.
+- **A React/Next component test harness is set up** (jsdom + Testing Library) so the new
+  UI components are covered by automated tests, not just the backend.
 
 ## Components
 
@@ -82,8 +86,8 @@ Renders inside `<Authenticated>`. Calls `getMe`:
 - `app/page.tsx` wraps `<Dashboard/>`.
 - `app/join/[token]/page.tsx` wraps `<JoinForm/>` (passes `next={/join/${token}}`).
 
-Small nicety (optional, low-cost): the per-league display-name `Input` in `Dashboard` and
-`JoinForm` prefills its initial value from the global `name`.
+The per-league display-name `Input` in `Dashboard` and `JoinForm` prefills its initial
+value from the global `name` (falling back to empty if the user has no name yet).
 
 ### 4. Backend — new `convex/users.ts` (TDD)
 
@@ -104,14 +108,40 @@ source (Base UI / base-nova), not upstream Radix docs.
 
 ## Testing
 
-- **Backend (TDD, red→green):** `convex/tests/users.test.ts`
-  - `setMyName` requires authentication (throws for signed-out caller).
-  - `setMyName` trims and stores the name; `getMe` reflects it.
-  - `setMyName` rejects an empty / whitespace-only name.
-  - `getMe` returns `null` when signed out.
-- **Frontend:** components are presentational; no component test harness exists in the
-  repo. Standing up jsdom + Testing Library is **out of scope** for this work (flag if
-  wanted later).
+### Test-harness setup (new)
+
+The repo currently runs vitest in the `node` environment (Convex tests opt into
+edge-runtime via a per-file docblock). Add a **jsdom** environment for React component
+tests, scoped so it doesn't disturb the existing node/edge tests:
+
+- Dev deps: `jsdom`, `@testing-library/react`, `@testing-library/user-event`,
+  `@testing-library/jest-dom`, `@vitejs/plugin-react`.
+- `vitest.config.ts`: add `@vitejs/plugin-react`, extend `include` to cover
+  `components/**/*.test.tsx`, register a `setupFiles` entry that imports
+  `@testing-library/jest-dom`. Component test files select jsdom with a per-file
+  `// @vitest-environment jsdom` docblock — consistent with the existing edge-runtime
+  docblock convention (keeps the default environment `node`).
+- Smoke test to prove the harness works before building features.
+
+### Backend (TDD, red→green) — `convex/tests/users.test.ts`
+
+- `setMyName` requires authentication (throws for signed-out caller).
+- `setMyName` trims and stores the name; `getMe` reflects it.
+- `setMyName` rejects an empty / whitespace-only name.
+- `getMe` returns `null` when signed out.
+
+### Frontend (TDD, red→green) — `components/*.test.tsx`
+
+Mock `convex/react` (`useQuery`/`useMutation`) and `@convex-dev/auth/react`
+(`useAuthActions`) so components render without a live backend.
+
+- `RequireName`: renders the name form when `getMe` returns a user with no `name`;
+  renders `children` when `name` is present; renders nothing while `getMe` is loading
+  (`undefined`); submitting calls `setMyName` with the trimmed value.
+- `SignIn`: renders the email form; submitting calls `signIn("resend", …)` and switches
+  to the "check your inbox" state; "use a different email" resets to the form.
+- `AuthGate`: renders `SignIn` for the unauthenticated branch and `RequireName`-wrapped
+  children for the authenticated branch (driven by mocked `Authenticated`/`Unauthenticated`).
 
 ## Scope — explicitly OUT (YAGNI)
 
@@ -119,7 +149,8 @@ source (Base UI / base-nova), not upstream Radix docs.
 - No schema change (the `users.name` field already exists).
 - No middleware route-protection changes.
 - No email validation beyond `type=email` + required; no rate-limit UI (backend handles).
-- No React component test harness.
+- No end-to-end / browser test runner (Playwright etc.) — component tests via Testing
+  Library + jsdom only.
 
 ## Process
 
