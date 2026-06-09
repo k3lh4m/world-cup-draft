@@ -52,7 +52,7 @@ export function SignIn({ next }: { next?: string }) {
     if (next) formData.set("redirectTo", next);
     setSending(true);
     try {
-      await signIn("resend", formData);
+      await signIn("mailersend", formData);
       setSentTo(email);
     } catch (err) {
       toast.error(
