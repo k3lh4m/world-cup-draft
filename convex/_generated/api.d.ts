@@ -9,11 +9,13 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as blindDraft from "../blindDraft.js";
 import type * as crons from "../crons.js";
 import type * as draft from "../draft.js";
 import type * as espn from "../espn.js";
 import type * as http from "../http.js";
 import type * as leagues from "../leagues.js";
+import type * as lib_blindResolve from "../lib/blindResolve.js";
 import type * as lib_clock from "../lib/clock.js";
 import type * as lib_draftBoard from "../lib/draftBoard.js";
 import type * as lib_draftView from "../lib/draftView.js";
@@ -40,11 +42,13 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  blindDraft: typeof blindDraft;
   crons: typeof crons;
   draft: typeof draft;
   espn: typeof espn;
   http: typeof http;
   leagues: typeof leagues;
+  "lib/blindResolve": typeof lib_blindResolve;
   "lib/clock": typeof lib_clock;
   "lib/draftBoard": typeof lib_draftBoard;
   "lib/draftView": typeof lib_draftView;

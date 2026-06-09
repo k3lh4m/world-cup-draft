@@ -79,6 +79,18 @@ export default defineSchema({
     pickClockSeconds: v.optional(v.number()),
     pickStartedAt: v.optional(v.number()),
     autopickJobId: v.optional(v.id("_scheduled_functions")),
+    // Blind-collision mode (absent ⇒ snake).
+    mode: v.optional(v.union(v.literal("snake"), v.literal("blind"))),
+    picksPerRound: v.optional(v.number()),
+    rounds: v.optional(v.number()),
+    currentRound: v.optional(v.number()),
+    roundState: v.optional(
+      v.union(
+        v.literal("selecting"),
+        v.literal("revealing"),
+        v.literal("complete"),
+      ),
+    ),
   }).index("by_league", ["leagueId"]),
 
   picks: defineTable({
@@ -100,4 +112,24 @@ export default defineSchema({
   })
     .index("by_membership", ["membershipId"])
     .index("by_league_membership", ["leagueId", "membershipId"]),
+
+  blindSelections: defineTable({
+    leagueId: v.id("leagues"),
+    draftId: v.id("drafts"),
+    round: v.number(),
+    membershipId: v.id("memberships"),
+    playerIds: v.array(v.id("players")),
+    lockedIn: v.boolean(),
+  })
+    .index("by_draft_round", ["draftId", "round"])
+    .index("by_draft_round_membership", ["draftId", "round", "membershipId"]),
+
+  draftWipes: defineTable({
+    leagueId: v.id("leagues"),
+    draftId: v.id("drafts"),
+    round: v.number(),
+    playerId: v.id("players"),
+  })
+    .index("by_league", ["leagueId"])
+    .index("by_draft", ["draftId"]),
 });

@@ -11,6 +11,7 @@ import { PickClock } from "@/components/PickClock";
 import { PickFeed } from "@/components/PickFeed";
 import { PlayerPool } from "@/components/PlayerPool";
 import { QueuePanel } from "@/components/QueuePanel";
+import { BlindDraftRoom } from "@/components/BlindDraftRoom";
 
 export default function DraftRoom({
   params,
@@ -36,6 +37,15 @@ export default function DraftRoom({
     currentMembershipId: onClock,
     myMembershipId,
   });
+
+  if (draft?.mode === "blind") {
+    return (
+      <main className="mx-auto w-full max-w-4xl flex-1 p-6">
+        <h1 className="mb-2 text-xl font-bold">Blind draft</h1>
+        <BlindDraftRoom leagueId={leagueId} />
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 p-6">
