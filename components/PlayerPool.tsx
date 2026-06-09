@@ -22,6 +22,7 @@ export function PlayerPool({
   const players = useQuery(api.players.listPlayers, {}) ?? [];
   const picks = useQuery(api.draft.listPicks, { leagueId }) ?? [];
   const makePick = useMutation(api.draft.makePick);
+  const addToQueue = useMutation(api.queue.addToQueue);
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState<string>("ALL");
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -43,6 +44,14 @@ export function PlayerPool({
       toast.error(err instanceof Error ? err.message : "Pick failed");
     } finally {
       setPendingId(null);
+    }
+  }
+
+  async function queuePlayer(playerId: Id<"players">) {
+    try {
+      await addToQueue({ leagueId, playerId });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add to queue");
     }
   }
 
@@ -82,13 +91,23 @@ export function PlayerPool({
                   {p.position} · {p.country}
                 </span>
               </span>
-              <Button
-                size="sm"
-                disabled={!myTurn || pendingId === p._id}
-                onClick={() => pick(p._id)}
-              >
-                Draft
-              </Button>
+              <span className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => queuePlayer(p._id)}
+                  aria-label={`Add ${p.name} to queue`}
+                >
+                  ＋ Queue
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!myTurn || pendingId === p._id}
+                  onClick={() => pick(p._id)}
+                >
+                  Draft
+                </Button>
+              </span>
             </li>
           ))
         )}

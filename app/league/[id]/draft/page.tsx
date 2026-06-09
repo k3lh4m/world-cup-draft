@@ -6,8 +6,10 @@ import { use, useMemo } from "react";
 import { api } from "@/convex/_generated/api";
 import { type Id } from "@/convex/_generated/dataModel";
 import { isMyTurn } from "@/convex/lib/draftView";
+import { DraftBoard } from "@/components/DraftBoard";
 import { PickFeed } from "@/components/PickFeed";
 import { PlayerPool } from "@/components/PlayerPool";
+import { QueuePanel } from "@/components/QueuePanel";
 
 export default function DraftRoom({
   params,
@@ -51,10 +53,20 @@ export default function DraftRoom({
       )}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[2fr_1fr]">
         <PlayerPool leagueId={leagueId} myTurn={myTurn} />
-        <div>
-          <h2 className="mb-1 font-semibold">Picks</h2>
-          <PickFeed leagueId={leagueId} />
+        <div className="flex flex-col gap-6">
+          <div>
+            <h2 className="mb-1 font-semibold">My queue</h2>
+            <QueuePanel leagueId={leagueId} />
+          </div>
+          <div>
+            <h2 className="mb-1 font-semibold">Picks</h2>
+            <PickFeed leagueId={leagueId} />
+          </div>
         </div>
+      </div>
+      <div className="mt-8">
+        <h2 className="mb-2 font-semibold">Draft board</h2>
+        <DraftBoard leagueId={leagueId} />
       </div>
     </main>
   );

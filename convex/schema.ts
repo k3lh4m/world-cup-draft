@@ -88,4 +88,12 @@ export default defineSchema({
     .index("by_league", ["leagueId"])
     .index("by_league_player", ["leagueId", "playerId"])
     .index("by_membership", ["membershipId"]),
+
+  draftQueues: defineTable({
+    leagueId: v.id("leagues"),
+    membershipId: v.id("memberships"),
+    playerIds: v.array(v.id("players")),
+  })
+    .index("by_membership", ["membershipId"])
+    .index("by_league_membership", ["leagueId", "membershipId"]),
 });
