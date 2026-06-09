@@ -192,3 +192,147 @@ export const blindRoundState = query({
     };
   },
 });
+
+/**
+ * Resolves the current round: assigns uniquely-picked players into the shared
+ * `picks` table, records collisions in `draftWipes`, and flips the round to
+ * "revealing". Guarded on roundState === "selecting" so concurrent last-lock-ins
+ * (OCC-retried) cannot double-resolve.
+ */
+async function resolveCurrentRound(
+  ctx: MutationCtx,
+  draftId: Id<"drafts">,
+): Promise<void> {
+  const draft = await ctx.db.get(draftId);
+  if (!draft || draft.mode !== "blind" || draft.roundState !== "selecting") return;
+  const round = draft.currentRound ?? 0;
+
+  const sels = await ctx.db
+    .query("blindSelections")
+    .withIndex("by_draft_round", (q) =>
+      q.eq("draftId", draftId).eq("round", round),
+    )
+    .collect();
+  const locked = sels.filter((s) => s.lockedIn);
+  const { assignments, wiped } = resolveRound(
+    locked.map((s) => ({
+      membershipId: s.membershipId as string,
+      playerIds: s.playerIds as string[],
+    })),
+  );
+
+  // Synthetic `overall` = running count of this league's picks at insert time.
+  const existing = await ctx.db
+    .query("picks")
+    .withIndex("by_league", (q) => q.eq("leagueId", draft.leagueId))
+    .collect();
+  let overall = existing.length;
+  for (const a of assignments) {
+    await ctx.db.insert("picks", {
+      leagueId: draft.leagueId,
+      draftId,
+      membershipId: a.membershipId as Id<"memberships">,
+      playerId: a.playerId as Id<"players">,
+      round,
+      overall: overall++,
+    });
+  }
+  for (const playerId of wiped) {
+    await ctx.db.insert("draftWipes", {
+      leagueId: draft.leagueId,
+      draftId,
+      round,
+      playerId: playerId as Id<"players">,
+    });
+  }
+
+  await ctx.db.patch(draftId, { roundState: "revealing" });
+}
+
+export const lockIn = mutation({
+  args: { leagueId: v.id("leagues") },
+  handler: async (ctx, { leagueId }) => {
+    const me = await requireMembership(ctx, leagueId);
+    const draft = await getBlindDraft(ctx, leagueId);
+    if (draft.roundState !== "selecting") throw new Error("Selections are closed");
+
+    const round = draft.currentRound ?? 0;
+    const doc = await ctx.db
+      .query("blindSelections")
+      .withIndex("by_draft_round_membership", (q) =>
+        q.eq("draftId", draft._id).eq("round", round).eq("membershipId", me._id),
+      )
+      .unique();
+    if (!doc || doc.playerIds.length < 1) {
+      throw new Error("Select at least one player before locking in");
+    }
+    if (doc.lockedIn) throw new Error("You have already locked in");
+    await ctx.db.patch(doc._id, { lockedIn: true });
+
+    // Auto-reveal once every participant is locked.
+    const sels = await ctx.db
+      .query("blindSelections")
+      .withIndex("by_draft_round", (q) =>
+        q.eq("draftId", draft._id).eq("round", round),
+      )
+      .collect();
+    const lockedCount = sels.filter((s) => s.lockedIn).length;
+    if (lockedCount === draft.order.length) {
+      await resolveCurrentRound(ctx, draft._id);
+    }
+  },
+});
+
+export const forceReveal = mutation({
+  args: { leagueId: v.id("leagues") },
+  handler: async (ctx, { leagueId }) => {
+    const me = await requireMembership(ctx, leagueId);
+    if (me.role !== "commissioner") {
+      throw new Error("Only the commissioner can force a reveal");
+    }
+    const draft = await getBlindDraft(ctx, leagueId);
+    if (draft.roundState !== "selecting") {
+      throw new Error("Round is not in the selecting phase");
+    }
+    const round = draft.currentRound ?? 0;
+
+    // Force-lock every participant's current selection as-is (incl. empty).
+    for (const membershipId of draft.order) {
+      const doc = await ctx.db
+        .query("blindSelections")
+        .withIndex("by_draft_round_membership", (q) =>
+          q.eq("draftId", draft._id).eq("round", round).eq("membershipId", membershipId),
+        )
+        .unique();
+      if (!doc) {
+        await ctx.db.insert("blindSelections", {
+          leagueId, draftId: draft._id, round, membershipId, playerIds: [], lockedIn: true,
+        });
+      } else if (!doc.lockedIn) {
+        await ctx.db.patch(doc._id, { lockedIn: true });
+      }
+    }
+    await resolveCurrentRound(ctx, draft._id);
+  },
+});
+
+export const nextRound = mutation({
+  args: { leagueId: v.id("leagues") },
+  handler: async (ctx, { leagueId }) => {
+    const me = await requireMembership(ctx, leagueId);
+    if (me.role !== "commissioner") {
+      throw new Error("Only the commissioner can advance the round");
+    }
+    const draft = await getBlindDraft(ctx, leagueId);
+    if (draft.roundState !== "revealing") {
+      throw new Error("Round is not ready to advance");
+    }
+    const round = draft.currentRound ?? 0;
+    const totalRounds = draft.rounds ?? 0;
+    if (round + 1 >= totalRounds) {
+      await ctx.db.patch(draft._id, { roundState: "complete", status: "complete" });
+    } else {
+      await ctx.db.patch(draft._id, { currentRound: round + 1, roundState: "selecting" });
+    }
+  },
+});
