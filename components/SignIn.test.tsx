@@ -22,14 +22,14 @@ describe("SignIn", () => {
     expect(screen.getByRole("button", { name: "Email me a sign-in link" })).toBeInTheDocument();
   });
 
-  it("calls signIn('resend', …) with the email and shows the sent state", async () => {
+  it("calls signIn('mailersend', …) with the email and shows the sent state", async () => {
     const user = userEvent.setup();
     render(<SignIn />);
     await user.type(screen.getByLabelText(/email/i), "sam@example.com");
     await user.click(screen.getByRole("button", { name: "Email me a sign-in link" }));
 
     const [provider, formData] = signInMock.mock.calls[0];
-    expect(provider).toBe("resend");
+    expect(provider).toBe("mailersend");
     expect((formData as FormData).get("email")).toBe("sam@example.com");
 
     expect(await screen.findByText(/check your inbox/i)).toBeInTheDocument();
