@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { type Id } from "@/convex/_generated/dataModel";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { DraftSetup } from "@/components/DraftSetup";
 import {
   Card,
   CardContent,
@@ -25,12 +26,6 @@ export default function LeagueHome({
   const league = useQuery(api.leagues.getLeague, { leagueId });
   const members = useQuery(api.leagues.listMembers, { leagueId }) ?? [];
   const draft = useQuery(api.draft.getDraft, { leagueId });
-  const startDraft = useMutation(api.draft.startDraft);
-  const startBlindDraft = useMutation(api.blindDraft.startBlindDraft);
-  const [mode, setMode] = useState<"snake" | "blind">("snake");
-  const [picksPerRound, setPicksPerRound] = useState(3);
-  const [rounds, setRounds] = useState(5);
-
   // Build invite URL after mount to avoid a server/client hydration mismatch.
   const [inviteUrl, setInviteUrl] = useState("");
   useEffect(() => {
@@ -41,19 +36,6 @@ export default function LeagueHome({
 
   if (league === undefined) return <main className="p-6">Loading…</main>;
   if (league === null) return <main className="p-6">League not found.</main>;
-
-  async function onStart() {
-    try {
-      const order = members.map((m) => m._id);
-      if (mode === "blind") {
-        await startBlindDraft({ leagueId, order, picksPerRound, rounds });
-      } else {
-        await startDraft({ leagueId, order });
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not start draft");
-    }
-  }
 
   async function copyInvite() {
     if (!inviteUrl) return;
@@ -105,32 +87,7 @@ export default function LeagueHome({
           Leaderboard
         </Link>
         {!draft && (
-          <div className="flex flex-wrap items-center gap-2">
-            <select className="rounded border px-2 py-1 text-sm" value={mode}
-              onChange={(e) => setMode(e.target.value as "snake" | "blind")}>
-              <option value="snake">Snake draft</option>
-              <option value="blind">Blind-collision draft</option>
-            </select>
-            {mode === "blind" && (
-              <>
-                <label className="text-sm">
-                  Picks/round{" "}
-                  <input type="number" min={1} max={11} value={picksPerRound}
-                    className="w-14 rounded border px-1 py-0.5"
-                    onChange={(e) => setPicksPerRound(Number(e.target.value))} />
-                </label>
-                <label className="text-sm">
-                  Rounds{" "}
-                  <input type="number" min={1} max={20} value={rounds}
-                    className="w-14 rounded border px-1 py-0.5"
-                    onChange={(e) => setRounds(Number(e.target.value))} />
-                </label>
-              </>
-            )}
-            <Button onClick={onStart} disabled={members.length === 0}>
-              Start draft
-            </Button>
-          </div>
+          <DraftSetup leagueId={leagueId} memberIds={members.map((m) => m._id)} />
         )}
       </div>
     </main>
