@@ -9,6 +9,10 @@ import { buildMagicLinkEmail, sendMailerSendEmail } from "./lib/mailerSend";
 // shape (token alone is sufficient); we override `id`/`from` on the returned
 // config. Reads MAILERSEND_API_KEY and MAILERSEND_FROM from the deployment env.
 const MailerSend = {
+  // Email() stores its config as `.options`; after the spread, `.options` holds
+  // only { authorize, sendVerificationRequest } — no `from`/`id` — so the
+  // framework's merge(provider, provider.options) at init is a no-op over the
+  // top-level overrides below.
   ...Email({
     authorize: undefined,
     sendVerificationRequest: async (params) => {
@@ -22,7 +26,7 @@ const MailerSend = {
     },
   }),
   id: "mailersend",
-  from: process.env.MAILERSEND_FROM ?? "World Cup Draft <onboarding@resend.dev>",
+  from: process.env.MAILERSEND_FROM ?? "World Cup Draft <magic@send.kelham.co>",
   maxAge: 24 * 60 * 60, // magic link valid 24h (matches prior Resend behaviour)
 };
 
