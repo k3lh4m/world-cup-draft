@@ -26,6 +26,12 @@ export const MailerSendPayloadSchema = z.object({
 });
 export type MailerSendPayload = z.infer<typeof MailerSendPayloadSchema>;
 
+export const MailerSendErrorSchema = z.object({
+  message: z.string(),
+  errors: z.record(z.string(), z.array(z.string())).optional(),
+});
+export type MailerSendError = z.infer<typeof MailerSendErrorSchema>;
+
 const SUBJECT = "Sign in to World Cup Draft";
 
 const MAILERSEND_ENDPOINT = "https://api.mailersend.com/v1/email";
@@ -46,7 +52,14 @@ export async function sendMailerSendEmail(args: {
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    throw new Error(`MailerSend send failed (${res.status})`);
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = MailerSendErrorSchema.parse(await res.json());
+      detail = body.message;
+    } catch {
+      // non-JSON or unexpected error body — keep the HTTP status detail
+    }
+    throw new Error(`MailerSend send failed (${res.status}): ${detail}`);
   }
   return { messageId: res.headers.get("x-message-id") ?? undefined };
 }

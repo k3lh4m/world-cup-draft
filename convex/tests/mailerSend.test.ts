@@ -69,4 +69,22 @@ describe("sendMailerSendEmail", () => {
       }),
     );
   });
+
+  it("throws including MailerSend's message when the API returns a 422 error body", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            message: "The given data was invalid.",
+            errors: { "to.0.email": ["The email must be a valid email address."] },
+          }),
+          { status: 422, headers: { "content-type": "application/json" } },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      sendMailerSendEmail({ apiKey: "key-abc", payload: samplePayload }),
+    ).rejects.toThrow(/The given data was invalid\./);
+  });
 });
