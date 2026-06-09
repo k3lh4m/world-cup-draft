@@ -75,6 +75,8 @@ export default defineSchema({
     order: v.array(v.id("memberships")),
     currentMembershipId: v.optional(v.id("memberships")),
     pickClockSeconds: v.optional(v.number()),
+    pickStartedAt: v.optional(v.number()),
+    autopickJobId: v.optional(v.id("_scheduled_functions")),
   }).index("by_league", ["leagueId"]),
 
   picks: defineTable({

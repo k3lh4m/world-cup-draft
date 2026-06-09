@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { type Id } from "@/convex/_generated/dataModel";
 import { isMyTurn } from "@/convex/lib/draftView";
 import { DraftBoard } from "@/components/DraftBoard";
+import { PickClock } from "@/components/PickClock";
 import { PickFeed } from "@/components/PickFeed";
 import { PlayerPool } from "@/components/PlayerPool";
 import { QueuePanel } from "@/components/QueuePanel";
@@ -49,6 +50,11 @@ export default function DraftRoom({
         <p className="mb-3">
           On the clock: <b>{onClockName ?? "—"}</b>
           {myTurn && " — your pick!"}
+          {" "}
+          <PickClock
+            pickStartedAt={draft.pickStartedAt}
+            clockSeconds={draft.pickClockSeconds}
+          />
         </p>
       )}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[2fr_1fr]">
