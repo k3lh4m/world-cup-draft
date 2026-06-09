@@ -1,9 +1,17 @@
+import { fileURLToPath } from "node:url";
+
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   // React plugin enables JSX/TSX transform for component tests.
   plugins: [react()],
+  // Mirror the tsconfig "@/*" path alias so components resolve under test.
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL(".", import.meta.url)),
+    },
+  },
   test: {
     // Default to node (parser tests read fixtures from disk).
     // Convex function tests opt into edge-runtime via a per-file docblock;
