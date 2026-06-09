@@ -52,6 +52,7 @@ export function DraftSetup({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <select
+        aria-label="Draft mode"
         className="rounded border px-2 py-1 text-sm"
         value={mode}
         onChange={(e) => setMode(e.target.value as "snake" | "blind")}
