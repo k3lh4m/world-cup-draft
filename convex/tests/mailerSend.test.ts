@@ -87,4 +87,13 @@ describe("sendMailerSendEmail", () => {
       sendMailerSendEmail({ apiKey: "key-abc", payload: samplePayload }),
     ).rejects.toThrow(/The given data was invalid\./);
   });
+
+  it("falls back to the HTTP status when the error body is not valid JSON", async () => {
+    const fetchMock = vi.fn(async () => new Response("<html>500</html>", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      sendMailerSendEmail({ apiKey: "key-abc", payload: samplePayload }),
+    ).rejects.toThrow(/500/);
+  });
 });
